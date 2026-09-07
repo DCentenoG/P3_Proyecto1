@@ -71,6 +71,7 @@ public class ResourceCategory {
         for (int i = 0; i < resources.size(); i++) {
             if (resources.get(i).getId() == id && resources.get(i).getDescription().equals(description)) {
                 resources.remove(i);
+                return;
             }
         }
     } //PENDIENTE IMPLEMENTAR EXCEPCION DE RECURSO NO ENCONTRADO Y DE PARAMETROS INVALIDOS
