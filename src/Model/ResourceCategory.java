@@ -5,18 +5,37 @@ import java.util.Objects;
 
 public class ResourceCategory {
     //Attributes
+    String id;
+    String description;
     private ArrayList<Resource> resources; //Contiene un tipo de recurso especifico
     //End of Attributes
 
     //Default Builder
     public ResourceCategory() {
         resources = new ArrayList<>();
+        id = null;
+        description = null;
     }
 
     //Parameterized Builder
-    public ResourceCategory(ArrayList<Resource> resources) {
+    public ResourceCategory(ArrayList<Resource> resources, String id, String description) {
+        this.id = id;
+        this.description = description;
         this.resources = resources;
     }
+
+    //basic getters
+    public String getId() {
+        return id;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    //setters
+    public void setId(String id) {this.id = id;}
+    public void setDescription(String description) {this.description = description;}
 
     //getter for the full container
     public ArrayList<Resource> getResources() {return resources;}
