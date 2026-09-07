@@ -3,18 +3,18 @@ package Model;
 import java.util.ArrayList;
 import java.util.Objects;
 
-public class ResourceContainer {
+public class ResourceCategory {
     //Attributes
     private ArrayList<Resource> resources; //Contiene un tipo de recurso especifico
     //End of Attributes
 
     //Default Builder
-    public ResourceContainer() {
+    public ResourceCategory() {
         resources = new ArrayList<>();
     }
 
     //Parameterized Builder
-    public ResourceContainer(ArrayList<Resource> resources) {
+    public ResourceCategory(ArrayList<Resource> resources) {
         this.resources = resources;
     }
 
