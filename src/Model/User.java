@@ -1,6 +1,6 @@
 package Model;
 
-public class User {
+public abstract class User {
     //Attributes
     private int id;
     private String password;
@@ -8,7 +8,7 @@ public class User {
 
     //Default builder
     public User(){}
-    //Builder with parameters
+    //Parameterized Builder
     public User(int id, String password){
         this.id = id;
         this.password = password;
