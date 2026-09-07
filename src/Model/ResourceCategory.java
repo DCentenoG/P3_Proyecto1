@@ -1,6 +1,8 @@
 package Model;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 public class ResourceCategory {
@@ -39,12 +41,12 @@ public class ResourceCategory {
     public void setResources(ArrayList<Resource> resources) {this.resources = resources;}
 
     //getter for the full container
-    public ArrayList<Resource> getResources() {return resources;}
+    public List<Resource> getResources() {return Collections.unmodifiableList(resources);}
     public int getSize() { return resources.size();}
 
     //Logic and calculus methods
     public void addResource(int id, String description) {
-        resources.add(new Resource(id, description));
+        resources.add(new Resource(id, this, description));
     } //PENDIENTE IMPLEMENTAR EXCEPCIONES DE PARAMETROS VALIDOS
 
     public Resource getResourceById(int id) {
@@ -69,6 +71,7 @@ public class ResourceCategory {
         for (int i = 0; i < resources.size(); i++) {
             if (resources.get(i).getId() == id && resources.get(i).getDescription().equals(description)) {
                 resources.remove(i);
+                return;
             }
         }
     } //PENDIENTE IMPLEMENTAR EXCEPCION DE RECURSO NO ENCONTRADO Y DE PARAMETROS INVALIDOS
