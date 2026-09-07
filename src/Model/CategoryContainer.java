@@ -1,6 +1,8 @@
 package Model;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class CategoryContainer {
     //Attributes
@@ -19,8 +21,8 @@ public class CategoryContainer {
     }
 
     //getter for the full container
-    public ArrayList<ResourceCategory> getCategories() {
-        return categories;
+    public List<ResourceCategory> getCategories() {
+        return Collections.unmodifiableList(categories);
     }
 
     //Logic and calculus methods
@@ -43,10 +45,11 @@ public class CategoryContainer {
     }
 
     public void deleteCategoryByIdAndDescription(String id, String description) {
-        for (ResourceCategory category : categories) {
-            if (category.getId().equals(id) && category.getDescription().equals(description)) {
-                category.deleteAllResources();
-                categories.remove(category);
+        for (int i = 0; i < categories.size(); i++) {
+            if (categories.get(i).getId().equals(id) && categories.get(i).getDescription().equals(description)) {
+                categories.get(i).deleteAllResources();
+                categories.remove(categories.get(i));
+                break;
             }
         }
     }
