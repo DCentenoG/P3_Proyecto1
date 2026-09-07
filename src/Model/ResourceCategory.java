@@ -18,10 +18,10 @@ public class ResourceCategory {
     }
 
     //Parameterized Builder
-    public ResourceCategory(ArrayList<Resource> resources, String id, String description) {
+    public ResourceCategory(String id, String description) {
+        resources = new ArrayList<>();
         this.id = id;
         this.description = description;
-        this.resources = resources;
     }
 
     //basic getters
@@ -36,9 +36,11 @@ public class ResourceCategory {
     //setters
     public void setId(String id) {this.id = id;}
     public void setDescription(String description) {this.description = description;}
+    public void setResources(ArrayList<Resource> resources) {this.resources = resources;}
 
     //getter for the full container
     public ArrayList<Resource> getResources() {return resources;}
+    public int getSize() { return resources.size();}
 
     //Logic and calculus methods
     public void addResource(int id, String description) {
@@ -70,6 +72,10 @@ public class ResourceCategory {
             }
         }
     } //PENDIENTE IMPLEMENTAR EXCEPCION DE RECURSO NO ENCONTRADO Y DE PARAMETROS INVALIDOS
+
+    public void deleteAllResources() {
+        resources.clear();
+    }
 
     public Resource getResourceByIndex(int index){return resources.get(index);}
 
