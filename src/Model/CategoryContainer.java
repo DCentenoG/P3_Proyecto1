@@ -1,21 +1,20 @@
 package Model;
 
 import java.util.ArrayList;
-import java.util.Objects;
 
-public class CategorieContainer {
+public class CategoryContainer {
     //Attributes
     private ArrayList<ResourceCategory> categories;
     //End of attributes
 
 
     //Default Builder
-    public CategorieContainer() {
+    public CategoryContainer() {
         categories = new ArrayList<>();
     }
 
     //Parameterized Builder
-    public CategorieContainer(ArrayList<ResourceCategory> categories) {
+    public CategoryContainer(ArrayList<ResourceCategory> categories) {
         this.categories = categories;
     }
 
