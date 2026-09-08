@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 public class Reservation {
     //Attributes
-    private String Activity;
+    private String activity;
     private LocalDate date;
     private LocalTime startTime;
     private LocalTime endTime;
@@ -13,7 +13,7 @@ public class Reservation {
 
     //Default Builder
     public Reservation() {
-        Activity = null;
+        activity = null;
         date = null;
         startTime = null;
         endTime = null;
@@ -21,17 +21,17 @@ public class Reservation {
     }
 
     //Parameterized Builder
-    public Reservation(String Activity, LocalDate date, LocalTime StartTime, LocalTime EndTime) {
-        this.Activity = Activity;
+    public Reservation(String activity, LocalDate date, LocalTime startTime, LocalTime endTime) {
+        this.activity = activity;
         this.date = date;
-        this.startTime = StartTime;
-        this.endTime = EndTime;
+        this.startTime = startTime;
+        this.endTime = endTime;
         assignedResources = new ArrayList<>(); //PENDIENTE VERIFICAR SI RECIBE LOS RECURSOS O SE AGREGAN CON LA RESERVACION YA CREADA
     }
 
     //basic getters
     public String getActivity() {
-        return Activity;
+        return activity;
     }
 
     public LocalDate getDate() {
@@ -52,7 +52,7 @@ public class Reservation {
 
     //basic setters
     public void setActivity(String Activity) {
-        this.Activity = Activity;
+        this.activity = Activity;
     }
 
     public void setDate(LocalDate date) {
@@ -74,8 +74,9 @@ public class Reservation {
     //logic and calculus methods
 
     //Este metodo chequea si dos reservas chocan en horario al menos un momento.
-    public boolean Overlaps(Reservation other) {
-        return this.startTime.isBefore(other.endTime)
+    public boolean overlaps(Reservation other) {
+        return this.date.equals(other.date)
+                && this.startTime.isBefore(other.endTime)
                 && other.startTime.isBefore(this.endTime);
     }
 
@@ -91,9 +92,10 @@ public class Reservation {
             Employee aux = listOfEmployeesForCheckingReservations.get(i);
             ArrayList<Reservation> toCheckList = aux.getReservations();
             for (int j = 0; j < toCheckList.size(); j++) {
-                if (this.Overlaps(toCheckList.get(j))) {
+                if (this.overlaps(toCheckList.get(j))) {
                     for (int k = 0; k < toCheckList.get(j).getAssignedResources().size(); k++) {
-                        if (toCheckList.get(j).getAssignedResources().get(k).equals(resource)) {
+                        if (toCheckList.get(j).getAssignedResources().get(k).getId() == resource.getId() &&
+                            toCheckList.get(j).getAssignedResources().get(k).getDescription().equals(resource.getDescription())) {
                             return false;
                         }
                     }

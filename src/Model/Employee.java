@@ -44,8 +44,8 @@ public class Employee extends User{
         this.phoneNumber = phoneNumber;
     }
 
-    public void setReservations(ArrayList<Reservation> Reservations) {
-        this.reservations = Reservations;
+    public void setReservations(ArrayList<Reservation> reservations) {
+        this.reservations = reservations;
     }
 
 
