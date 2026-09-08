@@ -48,6 +48,13 @@ public class UserContainer {
         nextId++;
     }
 
+    public void addAdmin(String password) {
+        int generatedId = nextId;
+        Admin newAdmin = new Admin(generatedId, password);
+        users.add(newAdmin);
+        nextId++;
+    }
+
     public void removeEmployeeByNameAndPhoneNumber(String name, int phoneNumber) {
         for (int i = 0; i < users.size(); i++) {
             if(users.get(i) instanceof Employee) {
