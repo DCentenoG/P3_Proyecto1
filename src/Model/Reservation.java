@@ -80,10 +80,12 @@ public class Reservation {
                 && other.startTime.isBefore(this.endTime);
     }
 
-    //Este metodo intenta agregar un recurso a la reserva verificando primero si no esta apartado en otra reserva que coincida en hora
-    /*Se decidio incluir en la reserva para evitar acoplamiento de clases innecesario, esto porque Employee igual se le implementara un
-    metodo que es llama a addResource al crear la reserva n veces segun la cantidad de categorias de recursos seleccionadas en la capa
-    de la vista*/
+    /*Este metodo intenta agregar un recurso a la reserva verificando primero si no esta apartado en otra reserva
+    que coincida en hora y fecha.
+    
+    Se decidio incluir en la reserva para evitar acoplamiento de clases innecesario, esto porque Employee igual se le implementara un
+    metodo que llama a addResource al crear la reserva y llama a este metodo n veces segun la cantidad de categorias de
+    recursos seleccionadas en la capa de la vista*/
     public boolean addResource(Resource resource, UserContainer users) {
 
         //Certificates first if the resource is already on another reservation at the same time
