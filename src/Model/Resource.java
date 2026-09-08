@@ -33,5 +33,10 @@ public class Resource {
         this.resourceCategoryReference = ResourceCategoryReference;
     }
 
+    //logic and calculus methods
+    public boolean isSameResource(Resource other) {
+        return this.id == other.id && this.description.equals(other.description);
+    }
+
 
 }

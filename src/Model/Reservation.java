@@ -94,8 +94,7 @@ public class Reservation {
             for (int j = 0; j < toCheckList.size(); j++) {
                 if (this.overlaps(toCheckList.get(j))) {
                     for (int k = 0; k < toCheckList.get(j).getAssignedResources().size(); k++) {
-                        if (toCheckList.get(j).getAssignedResources().get(k).getId() == resource.getId() &&
-                            toCheckList.get(j).getAssignedResources().get(k).getDescription().equals(resource.getDescription())) {
+                        if (toCheckList.get(j).getAssignedResources().get(k).isSameResource(resource)) {
                             return false;
                         }
                     }
