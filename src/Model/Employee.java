@@ -6,7 +6,7 @@ public class Employee extends User{
     //Attributes
     private String name;
     private int phoneNumber;
-    private ArrayList<Reservation> Reservations;
+    private ArrayList<Reservation> reservations;
     //End of Attributes
 
     //Default builder
@@ -19,7 +19,7 @@ public class Employee extends User{
         super(id,password);
         this.name = name;
         this.phoneNumber = phoneNumber;
-        this.Reservations = new ArrayList<Reservation>();
+        this.reservations = new ArrayList<Reservation>();
     }
 
     //Getter methods
@@ -32,7 +32,7 @@ public class Employee extends User{
     }
 
     public ArrayList<Reservation> getReservations() {
-        return Reservations;
+        return reservations;
     }
 
     //Setter methods
@@ -44,7 +44,9 @@ public class Employee extends User{
         this.phoneNumber = phoneNumber;
     }
 
-    public void setReservations(ArrayList<Reservation> Reservations) {}
+    public void setReservations(ArrayList<Reservation> Reservations) {
+        this.reservations = Reservations;
+    }
 
 
 
