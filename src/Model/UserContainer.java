@@ -80,4 +80,14 @@ public class UserContainer {
         }
         return null; //LANZAR EXCEPCION DE EMPLEADO NO ENCONTRADO
     }
+
+    public ArrayList<Employee> getListOfEmployees() {
+        ArrayList<Employee> employees = new ArrayList<>();
+        for (User user : users) {
+            if (user instanceof Employee) {
+                employees.add((Employee) user);
+            }
+        }
+        return employees;
+    }
 }
