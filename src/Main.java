@@ -1,7 +1,10 @@
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
+import View.LoginFrame;
+
+import javax.swing.SwingUtilities;
+
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Segundo dia, hola.");
+        // Lanza la pantalla de login para poder revisar visualmente la GUI.
+        SwingUtilities.invokeLater(() -> new LoginFrame().setVisible(true));
     }
 }
