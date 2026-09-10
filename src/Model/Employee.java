@@ -1,9 +1,12 @@
 package Model;
 
+import java.util.ArrayList;
+
 public class Employee extends User{
     //Attributes
     private String name;
     private int phoneNumber;
+    private ArrayList<Reservation> reservations;
     //End of Attributes
 
     //Default builder
@@ -16,6 +19,7 @@ public class Employee extends User{
         super(id,password);
         this.name = name;
         this.phoneNumber = phoneNumber;
+        this.reservations = new ArrayList<Reservation>();
     }
 
     //Getter methods
@@ -27,6 +31,10 @@ public class Employee extends User{
         return phoneNumber;
     }
 
+    public ArrayList<Reservation> getReservations() {
+        return reservations;
+    }
+
     //Setter methods
     public void setName(String name) {
         this.name = name;
@@ -34,6 +42,10 @@ public class Employee extends User{
 
     public void setPhoneNumber(int phoneNumber) {
         this.phoneNumber = phoneNumber;
+    }
+
+    public void setReservations(ArrayList<Reservation> reservations) {
+        this.reservations = reservations;
     }
 
 

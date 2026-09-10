@@ -46,6 +46,10 @@ public class ResourceCategory {
 
     //Logic and calculus methods
     public void addResource(int id, String description) {
+        if (getResourceById(id) != null) {
+            // lanzar excepción: id de recurso ya existe en esta categoría
+            return;
+        }
         resources.add(new Resource(id, this, description));
     } //PENDIENTE IMPLEMENTAR EXCEPCIONES DE PARAMETROS VALIDOS
 
