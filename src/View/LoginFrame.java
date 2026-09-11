@@ -11,7 +11,16 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 
-
+/**
+ * Ventana de inicio de sesión del Sistema de Reservas.
+ * <p>
+ * Esta clase construye únicamente la interfaz gráfica, siguiendo la
+ * distribución de campos y botones definida en el mockup del proyecto:
+ * el campo "ID", el campo "Clave" y los botones "Ingresar" y
+ * "Cancelar", usando los íconos reales de {@code /Resources/Icons}.
+ * Todavía no incorpora la lógica de autenticación; esa conexión con el
+ * controlador se agregará en una etapa posterior.
+ */
 public class LoginFrame extends JFrame {
 
     private JTextField idField;
@@ -29,7 +38,7 @@ public class LoginFrame extends JFrame {
         setResizable(false);
 
         JPanel content = new JPanel(new BorderLayout());
-        content.setBackground(FormStyle.BACKGROUND);
+        content.setBackground(UITheme.BACKGROUND);
         content.setBorder(BorderFactory.createEmptyBorder(28, 40, 24, 40));
         setContentPane(content);
 
@@ -50,14 +59,16 @@ public class LoginFrame extends JFrame {
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         idField = new JTextField();
-        FormStyle.styleField(idField);
+        idField.setPreferredSize(new java.awt.Dimension(280, 28));
+        UITheme.styleField(idField);
 
         passwordField = new JPasswordField();
-        FormStyle.styleField(passwordField);
+        passwordField.setPreferredSize(new java.awt.Dimension(280, 28));
+        UITheme.styleField(passwordField);
 
         gbc.gridy = 0;
         gbc.insets = new Insets(0, 0, 6, 0);
-        panel.add(FormStyle.createFieldLabel("ID:"), gbc);
+        panel.add(UITheme.createLabel("ID:"), gbc);
 
         gbc.gridy = 1;
         gbc.insets = new Insets(0, 0, 24, 0);
@@ -65,7 +76,7 @@ public class LoginFrame extends JFrame {
 
         gbc.gridy = 2;
         gbc.insets = new Insets(0, 0, 6, 0);
-        panel.add(FormStyle.createFieldLabel("Clave:"), gbc);
+        panel.add(UITheme.createLabel("Clave:"), gbc);
 
         gbc.gridy = 3;
         gbc.insets = new Insets(0, 0, 0, 0);
@@ -79,8 +90,8 @@ public class LoginFrame extends JFrame {
         panel.setOpaque(false);
         panel.setBorder(BorderFactory.createEmptyBorder(30, 0, 0, 0));
 
-        loginButton = FormStyle.createIconButton("Ingresar", CircleIcon.Symbol.ARROW_RIGHT, 46);
-        cancelButton = FormStyle.createIconButton("Cancelar", CircleIcon.Symbol.CLOSE, 46);
+        loginButton = UITheme.createStackedIconButton("Ingresar", IconLibrary.NEXT, 40);
+        cancelButton = UITheme.createStackedIconButton("Cancelar", IconLibrary.REMOVE, 40);
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridy = 0;

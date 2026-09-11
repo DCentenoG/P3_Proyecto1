@@ -7,11 +7,22 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 
-
+/**
+ * Ventana para el cambio de clave de un usuario.
+ * <p>
+ * Esta clase construye únicamente la interfaz gráfica, siguiendo la
+ * distribución definida en el mockup del proyecto: los campos "Clave
+ * actual", "Clave nueva" y "Confirmar clave nueva", y los botones de
+ * confirmar y cancelar con los íconos reales de {@code /Resources/Icons}
+ * (sin texto debajo, tal como en el mockup). La validación y el cambio
+ * real de la clave se conectarán con el controlador en una etapa
+ * posterior.
+ */
 public class PasswordChangeForm extends JFrame {
 
     private JPasswordField currentPasswordField;
@@ -30,7 +41,7 @@ public class PasswordChangeForm extends JFrame {
         setResizable(false);
 
         JPanel content = new JPanel(new BorderLayout());
-        content.setBackground(FormStyle.BACKGROUND);
+        content.setBackground(UITheme.BACKGROUND);
         content.setBorder(BorderFactory.createEmptyBorder(28, 40, 24, 40));
         setContentPane(content);
 
@@ -53,9 +64,10 @@ public class PasswordChangeForm extends JFrame {
         currentPasswordField = new JPasswordField();
         newPasswordField = new JPasswordField();
         confirmPasswordField = new JPasswordField();
-        FormStyle.styleField(currentPasswordField);
-        FormStyle.styleField(newPasswordField);
-        FormStyle.styleField(confirmPasswordField);
+        for (JPasswordField field : new JPasswordField[]{currentPasswordField, newPasswordField, confirmPasswordField}) {
+            field.setPreferredSize(new Dimension(280, 28));
+            UITheme.styleField(field);
+        }
 
         addLabeledField(panel, gbc, 0, "Clave actual:", currentPasswordField, true);
         addLabeledField(panel, gbc, 2, "Clave nueva:", newPasswordField, false);
@@ -68,7 +80,7 @@ public class PasswordChangeForm extends JFrame {
                                   String labelText, JComponent field, boolean firstRow) {
         gbc.gridy = row;
         gbc.insets = new Insets(firstRow ? 0 : 16, 0, 6, 0);
-        panel.add(FormStyle.createFieldLabel(labelText), gbc);
+        panel.add(UITheme.createLabel(labelText), gbc);
 
         gbc.gridy = row + 1;
         gbc.insets = new Insets(0, 0, 0, 0);
@@ -80,8 +92,8 @@ public class PasswordChangeForm extends JFrame {
         panel.setOpaque(false);
         panel.setBorder(BorderFactory.createEmptyBorder(26, 0, 0, 0));
 
-        confirmButton = FormStyle.createIconButton(null, CircleIcon.Symbol.CHECK, 52);
-        cancelButton = FormStyle.createIconButton(null, CircleIcon.Symbol.CLOSE, 52);
+        confirmButton = UITheme.createIconOnlyButton(IconLibrary.CHECKED, 46);
+        cancelButton = UITheme.createIconOnlyButton(IconLibrary.REMOVE, 46);
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridy = 0;
