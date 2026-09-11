@@ -18,6 +18,9 @@ import java.util.Map;
  */
 public class FilterBuilder {
 
+    /** Valor sentinela que representa "sin filtro aplicado" en los combos de filtro. */
+    public static final String NO_FILTER = "(Todas)";
+
     private final JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 24, 0));
     private final Map<String, JComponent> fields = new LinkedHashMap<>();
 
@@ -44,7 +47,11 @@ public class FilterBuilder {
     }
 
     private void addComboFilter(String label, List<String> options) {
-        JComboBox<String> combo = new JComboBox<>(options.toArray(new String[0]));
+        JComboBox<String> combo = new JComboBox<>();
+        combo.addItem(NO_FILTER);
+        for (String option : options) {
+            combo.addItem(option);
+        }
         combo.setFont(UITheme.FIELD_FONT);
         fields.put(label, combo);
         panel.add(UITheme.labeledField(label, combo));
@@ -65,7 +72,10 @@ public class FilterBuilder {
         return (component instanceof JTextField field) ? field.getText() : null;
     }
 
-    /** Valor seleccionado en un filtro de combo; {@code null} si no existe o no es un combo. */
+    /**
+     * Valor seleccionado en un filtro de combo; {@code null} si no existe o no es un combo.
+     * Puede devolver {@link #NO_FILTER} cuando el usuario no aplicó ese filtro.
+     */
     public Object getSelectedValue(String label) {
         JComponent component = fields.get(label);
         return (component instanceof JComboBox<?> combo) ? combo.getSelectedItem() : null;

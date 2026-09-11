@@ -30,6 +30,7 @@ public class CRUDView extends JPanel {
     private final JButton searchButton;
     private final JButton printButton;
     private final JTable table;
+    private final JButton addButton;
     private final JButton editButton;
     private final JButton deleteButton;
 
@@ -52,6 +53,7 @@ public class CRUDView extends JPanel {
         tableScroll.setBorder(BorderFactory.createLineBorder(UITheme.FIELD_BORDER));
         add(tableScroll, BorderLayout.CENTER);
 
+        addButton = UITheme.createAddButton();
         editButton = UITheme.createEditButton();
         deleteButton = UITheme.createDeleteButton();
         add(buildActionsRow(), BorderLayout.SOUTH);
@@ -89,6 +91,7 @@ public class CRUDView extends JPanel {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.RIGHT, 14, 0));
         row.setOpaque(false);
         row.setBorder(BorderFactory.createEmptyBorder(12, 0, 0, 0));
+        row.add(addButton);
         row.add(editButton);
         row.add(deleteButton);
         return row;
@@ -114,6 +117,10 @@ public class CRUDView extends JPanel {
 
     public JTable getTable() {
         return table;
+    }
+
+    public JButton getAddButton() {
+        return addButton;
     }
 
     public JButton getEditButton() {

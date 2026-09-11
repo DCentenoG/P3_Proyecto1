@@ -66,7 +66,11 @@ public class CalendarView extends JPanel {
         UITheme.styleField(dateField);
         row.add(UITheme.labeledField("Fecha", dateField));
 
-        categoryCombo = new JComboBox<>(categoryOptions.toArray(new String[0]));
+        categoryCombo = new JComboBox<>();
+        categoryCombo.addItem(FilterBuilder.NO_FILTER);
+        for (String option : categoryOptions) {
+            categoryCombo.addItem(option);
+        }
         categoryCombo.setFont(UITheme.FIELD_FONT);
         row.add(UITheme.labeledField("Categoría", categoryCombo));
 

@@ -73,7 +73,7 @@ public class ReservationsView extends JPanel {
         gbc.insets = new Insets(0, 0, 14, 0);
 
         gbc.gridy = 0;
-        section.add(UITheme.createSectionTitle("Nueva reserva"), gbc);
+        section.add(UITheme.sectionTitleWithNote("Nueva reserva", "*: Campo obligatorio"), gbc);
 
         gbc.gridy = 1;
         section.add(buildPhraseRow(), gbc);
@@ -120,7 +120,7 @@ public class ReservationsView extends JPanel {
     private JPanel buildActivityRow() {
         JPanel row = new JPanel(new BorderLayout(10, 0));
         row.setOpaque(false);
-        row.add(fixedWidthLabel("Actividad", 70), BorderLayout.WEST);
+        row.add(fixedWidthLabel("Actividad *", 70), BorderLayout.WEST);
 
         activityField = new JTextField();
         UITheme.styleField(activityField);
@@ -162,11 +162,11 @@ public class ReservationsView extends JPanel {
         dateDropdownButton = UITheme.createPickerButton("▾");
         gbc.gridy = 0;
         gbc.insets = new Insets(0, 0, 14, 0);
-        column.add(buildInlineField("Fecha", 60, dateField, dateDropdownButton), gbc);
+        column.add(buildInlineField("Fecha *", 60, dateField, dateDropdownButton), gbc);
 
         gbc.gridy = 1;
         gbc.insets = new Insets(0, 0, 6, 0);
-        column.add(UITheme.createLabel("Categorías requeridas (selección múltiple)"), gbc);
+        column.add(UITheme.createLabel("Categorías requeridas *"), gbc);
 
         categoriesList = new JList<>();
         categoriesList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
@@ -199,14 +199,14 @@ public class ReservationsView extends JPanel {
         startTimeButton = UITheme.createPickerButton("…");
         gbc.gridy = 0;
         gbc.insets = new Insets(0, 0, 14, 0);
-        column.add(buildInlineField("Hora inicio", 82, startTimeField, startTimeButton), gbc);
+        column.add(buildInlineField("Hora inicio *", 82, startTimeField, startTimeButton), gbc);
 
         endTimeField = new JTextField();
         UITheme.styleField(endTimeField);
         endTimeButton = UITheme.createPickerButton("…");
         gbc.gridy = 1;
         gbc.insets = new Insets(0, 0, 0, 0);
-        column.add(buildInlineField("Hora fin", 82, endTimeField, endTimeButton), gbc);
+        column.add(buildInlineField("Hora fin *", 82, endTimeField, endTimeButton), gbc);
 
         gbc.gridy = 2;
         gbc.weighty = 1;
@@ -272,7 +272,11 @@ public class ReservationsView extends JPanel {
 
     private static javax.swing.JLabel fixedWidthLabel(String text, int width) {
         javax.swing.JLabel label = UITheme.createLabel(text);
-        label.setPreferredSize(new Dimension(width, label.getPreferredSize().height));
+        // Se usa el mayor entre el ancho pedido y el que el texto realmente
+        // necesita, para que una etiqueta con "*" (campo obligatorio) nunca
+        // quede truncada y el asterisco deje de verse.
+        int preferredWidth = Math.max(width, label.getPreferredSize().width);
+        label.setPreferredSize(new Dimension(preferredWidth, label.getPreferredSize().height));
         return label;
     }
 

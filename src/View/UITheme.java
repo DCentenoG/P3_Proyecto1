@@ -30,6 +30,7 @@ public final class UITheme {
     public static final Color TEXT_BLUE = Color.decode("#1E3A8A");
     public static final Color ACCENT_BLUE = Color.decode("#2563EB");
     public static final Color DANGER_RED = Color.decode("#C20606");
+    public static final Color ADD_GREEN = Color.decode("#05862C");
     public static final Color CALENDAR_EVENT = Color.decode("#7DC4F4");
     public static final Color STATS_PANEL = Color.decode("#C3CBE3");
 
@@ -37,6 +38,7 @@ public final class UITheme {
     public static final Color FIELD_BORDER = new Color(203, 213, 225);
     public static final Color TABLE_GRID = new Color(226, 232, 240);
     public static final Color TAB_INACTIVE_BG = BACKGROUND;
+    public static final Color NOTE_GRAY = new Color(100, 116, 139);
 
     // ---- Tipografía ----
     private static final String FONT_FAMILY = "SansSerif";
@@ -48,6 +50,7 @@ public final class UITheme {
     public static final Font BUTTON_FONT = new Font(FONT_FAMILY, Font.BOLD, 12);
     public static final Font TABLE_HEADER_FONT = new Font(FONT_FAMILY, Font.BOLD, 12);
     public static final Font TABLE_FONT = new Font(FONT_FAMILY, Font.PLAIN, 12);
+    public static final Font NOTE_FONT = new Font(FONT_FAMILY, Font.ITALIC, 12);
 
     // ---- Medidas ----
     public static final int ICON_SMALL = 18;
@@ -73,6 +76,26 @@ public final class UITheme {
         label.setFont(SECTION_FONT);
         label.setForeground(TEXT_BLUE);
         return label;
+    }
+
+    /** Nota aclaratoria en gris/itálica (p. ej. "*: Campo obligatorio"). */
+    public static JLabel createNote(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(NOTE_FONT);
+        label.setForeground(NOTE_GRAY);
+        return label;
+    }
+
+    /**
+     * Fila de encabezado con un título de sección a la izquierda y una nota
+     * aclaratoria al extremo derecho (p. ej. "Nueva reserva" ... "*: Campo obligatorio").
+     */
+    public static JPanel sectionTitleWithNote(String title, String note) {
+        JPanel row = new JPanel(new java.awt.BorderLayout());
+        row.setOpaque(false);
+        row.add(createSectionTitle(title), java.awt.BorderLayout.WEST);
+        row.add(createNote(note), java.awt.BorderLayout.EAST);
+        return row;
     }
 
     /** Borde + tipografía estándar para campos de texto y de clave. */
@@ -151,6 +174,17 @@ public final class UITheme {
         JButton button = new JButton(IconLibrary.get(iconFile, iconSize));
         stripChrome(button);
         return button;
+    }
+
+    /**
+     * Botón "Agregar" independiente (rectángulo verde {@code #05862C} de
+     * esquinas redondeadas con ícono y texto blancos), usado junto a
+     * {@link #createEditButton()} y {@link #createDeleteButton()} bajo el
+     * listado de {@link CRUDView} para crear un nuevo registro sin
+     * necesidad de seleccionar ninguna fila de la tabla.
+     */
+    public static JButton createAddButton() {
+        return new RoundedActionButton("Agregar", IconLibrary.PLUS_WHITE, ADD_GREEN);
     }
 
     /**
