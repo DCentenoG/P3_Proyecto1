@@ -29,7 +29,7 @@ final class TopBarListener {
 
     private void onChangePassword() {
         PasswordChangeForm form = new PasswordChangeForm();
-        new PasswordChangeFormListener(form, session.getCurrentUser());
+        new PasswordChangeFormListener(form, session);
         form.setLocationRelativeTo(mainFrame);
         form.setVisible(true);
     }

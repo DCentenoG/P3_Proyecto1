@@ -6,17 +6,20 @@ import View.PasswordChangeForm;
 /**
  * Maneja los eventos de {@link PasswordChangeForm}: valida que los tres
  * campos estén completos, que la clave actual coincida con la real y que
- * la clave nueva y su confirmación sean iguales, y pide confirmación
- * antes de aplicar el cambio.
+ * la clave nueva y su confirmación sean iguales, pide confirmación antes
+ * de aplicar el cambio, y lo persiste en el archivo XML a través de
+ * {@link SessionContext#save(java.awt.Component)}.
  */
 public final class PasswordChangeFormListener {
 
     private final PasswordChangeForm view;
+    private final SessionContext session;
     private final User user;
 
-    public PasswordChangeFormListener(PasswordChangeForm view, User user) {
+    public PasswordChangeFormListener(PasswordChangeForm view, SessionContext session) {
         this.view = view;
-        this.user = user;
+        this.session = session;
+        this.user = session.getCurrentUser();
         wire();
     }
 
@@ -46,7 +49,13 @@ public final class PasswordChangeFormListener {
             return;
         }
 
+        String previousPassword = user.getPassword();
         user.setPassword(newPassword);
+        if (!session.save(view)) {
+            user.setPassword(previousPassword);
+            return;
+        }
+
         DialogHelper.info(view, "Cambio de clave", "La clave se actualizó correctamente.");
         view.dispose();
     }

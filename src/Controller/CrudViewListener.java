@@ -315,6 +315,10 @@ public final class CrudViewListener {
             session.getUsers().addEmployee(name, phone);
         }
 
+        if (!session.save(dialog)) {
+            return;
+        }
+
         dialog.dispose();
         DialogHelper.info(view, "Funcionarios", "Funcionario guardado correctamente.");
         refreshAfterChange();
@@ -331,6 +335,10 @@ public final class CrudViewListener {
             existing.setDescription(description);
         } else {
             session.getCategories().addCategory(description);
+        }
+
+        if (!session.save(dialog)) {
+            return;
         }
 
         dialog.dispose();
@@ -371,6 +379,10 @@ public final class CrudViewListener {
             targetCategory.addResource(id, description);
         }
 
+        if (!session.save(dialog)) {
+            return;
+        }
+
         dialog.dispose();
         DialogHelper.info(view, "Recursos", "Recurso guardado correctamente.");
         refreshAfterChange();
@@ -406,6 +418,10 @@ public final class CrudViewListener {
                 resource.getResourceCategoryReference()
                         .deleteResourceByIdAndDescription(resource.getId(), resource.getDescription());
             }
+        }
+
+        if (!session.save(view)) {
+            return;
         }
 
         DialogHelper.info(view, entityType.getPluralTitle(), "Elemento eliminado correctamente.");

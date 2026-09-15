@@ -131,6 +131,11 @@ public final class ReservationsViewListener {
         }
 
         employee.getReservations().add(reservation);
+        if (!session.save(view)) {
+            employee.getReservations().remove(reservation);
+            return;
+        }
+
         DialogHelper.info(view, "Reservas", "La reserva se guardó correctamente.");
         clearForm();
         renderReservations();
@@ -158,7 +163,11 @@ public final class ReservationsViewListener {
         if (!DialogHelper.confirm(view, "¿Desea cancelar la reserva seleccionada?")) {
             return;
         }
-        employee.getReservations().remove(row);
+        Reservation removed = employee.getReservations().remove(row);
+        if (!session.save(view)) {
+            employee.getReservations().add(row, removed);
+            return;
+        }
         renderReservations();
     }
 

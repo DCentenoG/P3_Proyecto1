@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<system>
+    <categories>
+        <category description="Sala para 10 personas" id="CAT-000001">
+            <resource description="Sala 1 primer piso" id="1"/>
+            <resource description="Sala 2 primer piso" id="2"/>
+        </category>
+        <category description="Laptop Windows 11" id="CAT-000002">
+            <resource description="Laptop #238715" id="1"/>
+            <resource description="Laptop #238716" id="2"/>
+        </category>
+        <category description="Proyector" id="CAT-000003">
+            <resource description="Proyector Epson 1" id="1"/>
+            <resource description="Proyector Epson 2" id="2"/>
+        </category>
+    </categories>
+    <users>
+        <user id="1" password="123admin" type="ADMIN"/>
+        <user id="2" name="Juan Perez Rodriguez" password="2" phoneNumber="88881111" type="EMPLOYEE">
+            <reservations>
+                <reservation activity="Reunion de planificacion" date="2026-09-20" endTime="10:00" startTime="09:00">
+                    <assignedResource categoryId="CAT-000001" resourceId="1"/>
+                    <assignedResource categoryId="CAT-000003" resourceId="1"/>
+                </reservation>
+            </reservations>
+        </user>
+        <user id="3" name="Maria Gomez Solano" password="3" phoneNumber="87772222" type="EMPLOYEE">
+            <reservations>
+                <reservation activity="Capacitacion de Excel" date="2026-09-22" endTime="16:00" startTime="14:00">
+                    <assignedResource categoryId="CAT-000002" resourceId="1"/>
+                </reservation>
+            </reservations>
+        </user>
+        <user id="4" name="Ana Vindas Chaves" password="4" phoneNumber="86663333" type="EMPLOYEE">
+            <reservations/>
+        </user>
+    </users>
+</system>
