@@ -66,7 +66,7 @@ public class ActivitySchedulingView extends JPanel {
         group.add(weekField, BorderLayout.CENTER);
         group.add(weekPickerButton, BorderLayout.EAST);
 
-        searchButton = UITheme.createIconOnlyButton(IconLibrary.SEARCH, 22);
+        searchButton = UITheme.createIconOnlyButton(IconLibrary.SEARCH_BLUE, 22);
         searchButton.setToolTipText("Buscar");
         printButton = UITheme.createIconOnlyButton(IconLibrary.PRINTER, 22);
         printButton.setToolTipText("Imprimir");

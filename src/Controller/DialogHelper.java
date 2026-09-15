@@ -15,11 +15,15 @@ public final class DialogHelper {
         // Clase de utilidades: no debe instanciarse.
     }
 
+    /** Opciones de los diálogos de confirmación, en español (el Look &amp; Feel por defecto las muestra en inglés). */
+    private static final Object[] YES_NO = {"Sí", "No"};
+
     /** Pregunta al usuario si desea proceder con una operación (Sí/No). */
     public static boolean confirm(Component parent, String message) {
-        int option = JOptionPane.showConfirmDialog(parent, message, "Confirmar operación",
-                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-        return option == JOptionPane.YES_OPTION;
+        int choice = JOptionPane.showOptionDialog(parent, message, "Confirmar operación",
+                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE,
+                null, YES_NO, YES_NO[0]);
+        return choice == 0; // 0 == "Sí"
     }
 
     /** Notifica al usuario que debe corregir algo antes de continuar (p. ej. seleccionar una fila). */

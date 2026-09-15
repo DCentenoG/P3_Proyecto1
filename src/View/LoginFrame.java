@@ -91,7 +91,7 @@ public class LoginFrame extends JFrame {
         panel.setBorder(BorderFactory.createEmptyBorder(30, 0, 0, 0));
 
         loginButton = UITheme.createStackedIconButton("Ingresar", IconLibrary.NEXT, 40);
-        cancelButton = UITheme.createStackedIconButton("Cancelar", IconLibrary.REMOVE, 40);
+        cancelButton = UITheme.createStackedIconButton("Salir", IconLibrary.LOGOUT, 40);
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridy = 0;
@@ -104,8 +104,6 @@ public class LoginFrame extends JFrame {
 
         return panel;
     }
-
-    // ---- Métodos de acceso para el futuro controlador ----
 
     public String getEnteredId() {
         return idField.getText();

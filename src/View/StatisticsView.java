@@ -77,7 +77,7 @@ public class StatisticsView extends JPanel {
             UITheme.styleField(startDateField);
             endDateField = new JTextField(9);
             UITheme.styleField(endDateField);
-            searchButton = UITheme.createIconOnlyButton(IconLibrary.SEARCH, 20);
+            searchButton = UITheme.createIconOnlyButton(IconLibrary.SEARCH_BLACK, 20);
             searchButton.setToolTipText("Buscar");
 
             add(buildHeader(title), BorderLayout.NORTH);
@@ -91,7 +91,7 @@ public class StatisticsView extends JPanel {
             table = new JTable(model);
             UITheme.styleTable(table);
             JScrollPane tableScroll = new JScrollPane(table);
-            tableScroll.setBorder(BorderFactory.createLineBorder(UITheme.FIELD_BORDER));
+            UITheme.styleScrollPane(tableScroll);
             tableScroll.setPreferredSize(new Dimension(10, 150));
             tableScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
             tableScroll.setAlignmentX(Component.LEFT_ALIGNMENT);

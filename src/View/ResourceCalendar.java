@@ -1,6 +1,5 @@
 package View;
 
-import javax.swing.BorderFactory;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -34,7 +33,7 @@ public class ResourceCalendar extends JPanel {
         UITheme.styleTable(table);
 
         JScrollPane scroll = new JScrollPane(table);
-        scroll.setBorder(BorderFactory.createLineBorder(UITheme.FIELD_BORDER));
+        UITheme.styleScrollPane(scroll);
         add(scroll, BorderLayout.CENTER);
 
         setResources(resourceNames);

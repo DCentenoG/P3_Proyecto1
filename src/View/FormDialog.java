@@ -86,7 +86,7 @@ public class FormDialog extends JDialog {
     private JComponent createField(String label, List<String> categoryOptions) {
         if (entityType == EntityType.RECURSO && "Categoría".equals(label)) {
             JComboBox<String> combo = new JComboBox<>(categoryOptions.toArray(new String[0]));
-            combo.setFont(UITheme.FIELD_FONT);
+            UITheme.styleCombo(combo);
             return combo;
         }
         JTextField field = new JTextField();

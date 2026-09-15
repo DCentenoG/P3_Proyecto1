@@ -71,10 +71,10 @@ public class CalendarView extends JPanel {
         for (String option : categoryOptions) {
             categoryCombo.addItem(option);
         }
-        categoryCombo.setFont(UITheme.FIELD_FONT);
+        UITheme.styleCombo(categoryCombo);
         row.add(UITheme.labeledField("Categoría", categoryCombo));
 
-        searchButton = UITheme.createIconOnlyButton(IconLibrary.SEARCH, 22);
+        searchButton = UITheme.createIconOnlyButton(IconLibrary.SEARCH_BLUE, 22);
         searchButton.setToolTipText("Buscar");
         printButton = UITheme.createIconOnlyButton(IconLibrary.PRINTER, 22);
         printButton.setToolTipText("Imprimir");

@@ -2,11 +2,15 @@ package View;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
+import javax.swing.UIManager;
 import javax.swing.border.Border;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
@@ -57,6 +61,13 @@ public final class UITheme {
     public static final int ICON_MEDIUM = 22;
     public static final int ICON_TAB = 22;
     public static final int ICON_ACTION = 30;
+
+    /** Ancho y alto mínimos de un campo de texto/combo, como en el mockup (formularios espaciosos). */
+    public static final int FIELD_MIN_WIDTH = 220;
+    public static final int FIELD_HEIGHT = 32;
+
+    /** Tamaño de los íconos de aviso/pregunta que muestran los JOptionPane de {@code DialogHelper}. */
+    public static final int OPTION_ICON_SIZE = 32;
 
     private UITheme() {
         // Clase de utilidades: no debe instanciarse.
@@ -132,11 +143,54 @@ public final class UITheme {
         return wrapper;
     }
 
+    /**
+     * Tipografía, borde y tamaño mínimo estándar de un campo de texto. El
+     * ancho/alto reales se calculan como el mayor entre lo que el campo ya
+     * traía y {@link #FIELD_MIN_WIDTH}/{@link #FIELD_HEIGHT}, para que
+     * ningún formulario quede con campos angostos como en el mockup.
+     */
     public static void styleField(JTextField field) {
         field.setFont(FIELD_FONT);
         field.setBackground(WHITE);
         field.setBorder(fieldBorder());
-        field.setPreferredSize(new Dimension(field.getPreferredSize().width, 28));
+        int width = Math.max(field.getPreferredSize().width, FIELD_MIN_WIDTH);
+        field.setPreferredSize(new Dimension(width, FIELD_HEIGHT));
+    }
+
+    /**
+     * Tipografía, colores, borde y tamaño mínimo estándar de un combo
+     * (lista desplegable) de filtro o formulario, para que se vea igual
+     * de "plano" y uniforme que un {@link #styleField(JTextField)}: mismo
+     * fondo blanco, mismo borde gris y mismo azul de acento al
+     * seleccionar una opción de la lista desplegada (ver también
+     * {@link #installSwingTheme()}, que fija esos mismos colores de
+     * selección a nivel de {@link UIManager} para toda la aplicación).
+     */
+    public static void styleCombo(JComboBox<?> combo) {
+        combo.setFont(FIELD_FONT);
+        combo.setBackground(WHITE);
+        combo.setForeground(Color.BLACK);
+        combo.setBorder(BorderFactory.createLineBorder(FIELD_BORDER));
+        int width = Math.max(combo.getPreferredSize().width, FIELD_MIN_WIDTH);
+        combo.setPreferredSize(new Dimension(width, FIELD_HEIGHT));
+    }
+
+    /**
+     * Borde, fondo y barras de desplazamiento planas estándar de un
+     * {@link JScrollPane} (tablas, la lista de categorías de
+     * {@link ReservationsView}, las celdas de calendarización, etc.):
+     * mismo borde gris que un campo de texto y una barra de scroll
+     * delgada y sin flechas ({@link FlatScrollBarUI}) en vez del relieve
+     * por defecto del Look &amp; Feel.
+     */
+    public static void styleScrollPane(JScrollPane scrollPane) {
+        scrollPane.setBorder(BorderFactory.createLineBorder(FIELD_BORDER));
+        scrollPane.setBackground(WHITE);
+        scrollPane.getViewport().setBackground(WHITE);
+        scrollPane.getVerticalScrollBar().setUI(new FlatScrollBarUI());
+        scrollPane.getHorizontalScrollBar().setUI(new FlatScrollBarUI());
+        scrollPane.getVerticalScrollBar().setPreferredSize(new Dimension(10, 0));
+        scrollPane.getHorizontalScrollBar().setPreferredSize(new Dimension(0, 10));
     }
 
     /**
@@ -264,6 +318,59 @@ public final class UITheme {
         button.setPreferredSize(new Dimension(34, 30));
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return button;
+    }
+
+    /**
+     * Uniforma con un solo llamado, al iniciar la aplicación (ver
+     * {@code Main}, antes de crear cualquier ventana), la apariencia de
+     * los componentes cuyo estilo por defecto viene del Look &amp; Feel en
+     * vez de las fábricas de {@code UITheme}:
+     * <ul>
+     *   <li>Los {@link JOptionPane} de {@code Controller.DialogHelper}
+     *       (confirmar/avisar/informar/error): mismo fondo, tipografía,
+     *       color de acento en los botones ("Sí"/"No"/"Aceptar") e íconos
+     *       de {@link IconLibrary#WARNING}, {@link IconLibrary#QUESTION} e
+     *       {@link IconLibrary#INFORMATION} para avisos, confirmaciones y
+     *       mensajes informativos.</li>
+     *   <li>Los {@link JComboBox} (combos de filtro/formulario): color de
+     *       selección de la lista desplegada, a juego con
+     *       {@link #styleCombo(JComboBox)}.</li>
+     * </ul>
+     * Para seguir ajustando el estilo basta con agregar más líneas
+     * {@code UIManager.put(...)} aquí; estas son las claves más usadas del
+     * look and feel por defecto de Swing (Metal):
+     * <ul>
+     *   <li>{@code "OptionPane.background"} / {@code "Panel.background"}: fondo del diálogo.</li>
+     *   <li>{@code "OptionPane.messageFont"} / {@code "OptionPane.messageForeground"}: tipografía y color del texto.</li>
+     *   <li>{@code "OptionPane.buttonFont"}, {@code "Button.background"}, {@code "Button.foreground"}: botones "Sí"/"No"/"Aceptar".</li>
+     *   <li>{@code "OptionPane.errorIcon"}, {@code "OptionPane.warningIcon"}, {@code "OptionPane.informationIcon"},
+     *       {@code "OptionPane.questionIcon"}: íconos (aceptan un {@link javax.swing.Icon}, p. ej. de {@link IconLibrary}).</li>
+     *   <li>{@code "ComboBox.selectionBackground"} / {@code "ComboBox.selectionForeground"}: colores de la opción
+     *       resaltada en la lista desplegada de un combo.</li>
+     * </ul>
+     * Nota: la barra de título del diálogo (borde y botón "X") la dibuja el
+     * sistema operativo, no Swing, así que no se puede recolorear desde
+     * aquí. Si se necesita también controlar esa barra, la alternativa es
+     * reemplazar los métodos de {@code DialogHelper} por diálogos propios
+     * (un {@link javax.swing.JDialog} a medida, como {@link FormDialog})
+     * en vez de {@code JOptionPane}.
+     */
+    public static void installSwingTheme() {
+        UIManager.put("OptionPane.background", BACKGROUND);
+        UIManager.put("Panel.background", BACKGROUND);
+        UIManager.put("OptionPane.messageFont", FIELD_FONT);
+        UIManager.put("OptionPane.messageForeground", TEXT_BLUE);
+        UIManager.put("OptionPane.buttonFont", BUTTON_FONT);
+        UIManager.put("Button.background", ACCENT_BLUE);
+        UIManager.put("Button.foreground", WHITE);
+        UIManager.put("OptionPane.warningIcon", IconLibrary.get(IconLibrary.WARNING, OPTION_ICON_SIZE));
+        UIManager.put("OptionPane.questionIcon", IconLibrary.get(IconLibrary.QUESTION, OPTION_ICON_SIZE));
+        UIManager.put("OptionPane.informationIcon", IconLibrary.get(IconLibrary.INFORMATION, OPTION_ICON_SIZE));
+
+        UIManager.put("ComboBox.selectionBackground", ACCENT_BLUE);
+        UIManager.put("ComboBox.selectionForeground", WHITE);
+        UIManager.put("ComboBox.background", WHITE);
+        UIManager.put("ComboBox.buttonBackground", WHITE);
     }
 
     private static void stripChrome(JButton button) {

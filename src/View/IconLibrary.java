@@ -1,7 +1,9 @@
 package View;
 
 import javax.swing.ImageIcon;
+import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.net.URL;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,10 +51,14 @@ public final class IconLibrary {
     public static final String PLUS_WHITE = "plus.png";
     public static final String PRINTER = "printer.png";
     public static final String REMOVE = "remove.png";
-    public static final String SEARCH = "search.png";
+    public static final String SEARCH_BLUE = "search.png";
+    public static final String SEARCH_BLACK = "searchB.png";
     public static final String STATISTICS = "statistics.png";
     public static final String STATISTICS_WHITE = "statisticsW.png";
     public static final String TRASH_WHITE = "trash-canW.png";
+    public static final String WARNING = "warning.png";
+    public static final String QUESTION = "question.png";
+    public static final String INFORMATION = "information.png";
 
     private IconLibrary() {
         // Clase de utilidades: no debe instanciarse.
@@ -70,16 +76,49 @@ public final class IconLibrary {
             throw new IllegalArgumentException("No se encontró el ícono: " + BASE_PATH + fileName);
         }
         Image source = new ImageIcon(url).getImage();
+        return new ImageIcon(highQualityScale(source, size, size));
+    }
 
-        BufferedImage scaled = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-        var g2 = scaled.createGraphics();
-        g2.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
-                java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
-                java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.drawImage(source, 0, 0, size, size, null);
+    /**
+     * Reduce la imagen fuente (512x512) al tamaño pedido en pasos sucesivos
+     * de mitad en mitad, en vez de un único escalado directo. Un solo paso
+     * de {@code drawImage} con reducciones tan grandes (p. ej. de 512 a
+     * 18-22 px, usadas en los tabs/botones) hace que el interpolador
+     * bilineal descarte la mayoría de los píxeles fuente, lo que se ve
+     * como un ícono "pixelado"/con bordes ásperos. Reduciendo a la mitad
+     * en cada paso, cada píxel de salida siempre promedia una vecindad
+     * pequeña y representativa de la imagen anterior, dando un resultado
+     * mucho más nítido (técnica estándar para miniaturas de alta calidad
+     * en Java 2D).
+     */
+    private static BufferedImage highQualityScale(Image source, int targetWidth, int targetHeight) {
+        BufferedImage current = toBufferedImage(source);
+        int width = current.getWidth();
+        int height = current.getHeight();
+
+        while (width / 2 > targetWidth && height / 2 > targetHeight) {
+            width = Math.max(width / 2, targetWidth);
+            height = Math.max(height / 2, targetHeight);
+            current = scaleStep(current, width, height);
+        }
+        return scaleStep(current, targetWidth, targetHeight);
+    }
+
+    private static BufferedImage scaleStep(Image source, int width, int height) {
+        BufferedImage scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = scaled.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2.drawImage(source, 0, 0, width, height, null);
         g2.dispose();
+        return scaled;
+    }
 
-        return new ImageIcon(scaled);
+    private static BufferedImage toBufferedImage(Image source) {
+        if (source instanceof BufferedImage bufferedImage) {
+            return bufferedImage;
+        }
+        return scaleStep(source, source.getWidth(null), source.getHeight(null));
     }
 }

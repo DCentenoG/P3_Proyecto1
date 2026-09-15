@@ -174,7 +174,7 @@ public class ReservationsView extends JPanel {
         categoriesList.setBackground(UITheme.WHITE);
 
         JScrollPane categoriesScroll = new JScrollPane(categoriesList);
-        categoriesScroll.setBorder(BorderFactory.createLineBorder(UITheme.FIELD_BORDER));
+        UITheme.styleScrollPane(categoriesScroll);
         categoriesScroll.setPreferredSize(new Dimension(10, 92));
 
         gbc.gridy = 2;
@@ -253,7 +253,7 @@ public class ReservationsView extends JPanel {
         UITheme.styleTable(reservationsTable);
 
         JScrollPane tableScroll = new JScrollPane(reservationsTable);
-        tableScroll.setBorder(BorderFactory.createLineBorder(UITheme.FIELD_BORDER));
+        UITheme.styleScrollPane(tableScroll);
         section.add(tableScroll, BorderLayout.CENTER);
 
         printButton = UITheme.createStackedIconButton("Imprimir", IconLibrary.PRINTER, 26);

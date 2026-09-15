@@ -52,7 +52,7 @@ public class FilterBuilder {
         for (String option : options) {
             combo.addItem(option);
         }
-        combo.setFont(UITheme.FIELD_FONT);
+        UITheme.styleCombo(combo);
         fields.put(label, combo);
         panel.add(UITheme.labeledField(label, combo));
     }

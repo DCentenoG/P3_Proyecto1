@@ -41,7 +41,7 @@ public class CRUDView extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(20, 28, 20, 28));
 
         filterBuilder = new FilterBuilder(entityType, categoryOptions);
-        searchButton = UITheme.createIconOnlyButton(IconLibrary.SEARCH, 22);
+        searchButton = UITheme.createIconOnlyButton(IconLibrary.SEARCH_BLUE, 22);
         searchButton.setToolTipText("Buscar");
         printButton = UITheme.createIconOnlyButton(IconLibrary.PRINTER, 22);
         printButton.setToolTipText("Imprimir");
@@ -50,7 +50,7 @@ public class CRUDView extends JPanel {
 
         table = TableBuilder.build(entityType, 7);
         JScrollPane tableScroll = new JScrollPane(table);
-        tableScroll.setBorder(BorderFactory.createLineBorder(UITheme.FIELD_BORDER));
+        UITheme.styleScrollPane(tableScroll);
         add(tableScroll, BorderLayout.CENTER);
 
         addButton = UITheme.createAddButton();
