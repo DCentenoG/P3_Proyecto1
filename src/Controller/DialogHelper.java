@@ -1,4 +1,4 @@
-package View.Events;
+package Controller;
 
 import javax.swing.JOptionPane;
 import java.awt.Component;

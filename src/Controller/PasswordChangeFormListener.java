@@ -1,4 +1,4 @@
-package View.Events;
+package Controller;
 
 import Model.User;
 import View.PasswordChangeForm;

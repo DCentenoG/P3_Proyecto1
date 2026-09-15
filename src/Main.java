@@ -1,5 +1,5 @@
-import View.Events.LoginFrameListener;
-import View.Events.SessionContext;
+import Controller.LoginFrameListener;
+import Controller.SessionContext;
 import View.LoginFrame;
 
 import javax.swing.SwingUtilities;

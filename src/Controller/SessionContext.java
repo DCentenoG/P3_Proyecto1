@@ -1,4 +1,4 @@
-package View.Events;
+package Controller;
 
 import Model.CategoryContainer;
 import Model.User;

@@ -1,4 +1,4 @@
-package View.Events;
+package Controller;
 
 import View.LoginFrame;
 import View.MainFrame;
