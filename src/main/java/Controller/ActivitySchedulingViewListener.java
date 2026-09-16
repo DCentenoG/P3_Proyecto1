@@ -204,7 +204,7 @@ public final class ActivitySchedulingViewListener {
         parameters.put("weekText", monday.format(DATE_FORMAT) + " al " + friday.format(DATE_FORMAT));
 
         try {
-            byte[] pdf = ReportService.generatePdf("/reports/actividades.jrxml", rows, parameters);
+            byte[] pdf = ReportService.generatePdf("/ReportDesign/actividades.jrxml", rows, parameters);
             saveAndOpenPdf(pdf);
         } catch (ReportException ex) {
             DialogHelper.error(view, "No fue posible generar el reporte: " + ex.getMessage());

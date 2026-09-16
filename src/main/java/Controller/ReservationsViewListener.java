@@ -336,7 +336,7 @@ public final class ReservationsViewListener {
         parameters.put("employeeName", employee.getName());
 
         try {
-            byte[] pdf = ReportService.generatePdf("/reports/mis_reservas.jrxml", toReservationRows(reservations), parameters);
+            byte[] pdf = ReportService.generatePdf("/ReportDesign/mis_reservas.jrxml", toReservationRows(reservations), parameters);
             saveAndOpenPdf(pdf);
         } catch (ReportException ex) {
             DialogHelper.error(view, "No fue posible generar el reporte: " + ex.getMessage());

@@ -523,9 +523,9 @@ public final class CrudViewListener {
 
         try {
             byte[] pdf = switch (entityType) {
-                case FUNCIONARIO -> ReportService.generatePdf("/reports/funcionarios.jrxml", toEmployeeRows(), null);
-                case CATEGORIA -> ReportService.generatePdf("/reports/categorias.jrxml", toCategoryRows(), null);
-                case RECURSO -> ReportService.generatePdf("/reports/recursos.jrxml", toResourceRows(), null);
+                case FUNCIONARIO -> ReportService.generatePdf("/ReportDesign/funcionarios.jrxml", toEmployeeRows(), null);
+                case CATEGORIA -> ReportService.generatePdf("/ReportDesign/categorias.jrxml", toCategoryRows(), null);
+                case RECURSO -> ReportService.generatePdf("/ReportDesign/recursos.jrxml", toResourceRows(), null);
             };
             saveAndOpenPdf(pdf);
         } catch (ReportException ex) {

@@ -274,7 +274,7 @@ public final class CalendarViewListener {
         parameters.put("categoryText", (activeCategory != null) ? activeCategory : "(Todas)");
 
         try {
-            byte[] pdf = ReportService.generatePdf("/reports/calendarizacion.jrxml", rows, parameters);
+            byte[] pdf = ReportService.generatePdf("/ReportDesign/calendarizacion.jrxml", rows, parameters);
             saveAndOpenPdf(pdf);
         } catch (ReportException ex) {
             DialogHelper.error(view, "No fue posible generar el reporte: " + ex.getMessage());

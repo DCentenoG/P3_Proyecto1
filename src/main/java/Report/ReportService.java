@@ -16,8 +16,8 @@ import java.util.Map;
 
 /*
 Compila y llena las plantillas .jrxml del proyecto (ubicadas en
-src/main/resources/reports, y por lo tanto disponibles en el classpath
-como /reports/nombre.jrxml, igual que IconLibrary carga los iconos desde
+src/main/resources/ReportDesign, y por lo tanto disponibles en el classpath
+como /ReportDesign/nombre.jrxml, igual que IconLibrary carga los iconos desde
 /Resources/Icons), y devuelve el PDF resultante como arreglo de bytes
 listo para guardarse en disco.
 
@@ -39,7 +39,7 @@ public final class ReportService {
 
     /**
      * Genera un PDF a partir de la plantilla en {@code reportResourcePath}
-     * (ej. {@code "/reports/categorias.jrxml"}) y los datos en {@code rows}.
+     * (ej. {@code "/ReportDesign/categorias.jrxml"}) y los datos en {@code rows}.
      *
      * @param reportResourcePath ruta de la plantilla dentro del classpath, empezando con "/"
      * @param rows                los beans que va a recorrer el reporte (uno por fila del detalle)
