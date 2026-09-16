@@ -10,6 +10,8 @@ import View.StatisticsView;
 
 import javax.swing.JTabbedPane;
 import java.awt.Component;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Orquesta el manejo de eventos de {@link MainFrame}: conecta el
@@ -36,6 +38,7 @@ public final class MainFrameListener {
         CrudViewListener resourceListener = null;
         CrudViewListener categoryListener = null;
         CalendarViewListener calendarListener = null;
+        List<CrudViewListener> crudListeners = new ArrayList<>();
 
         for (int i = 0; i < tabs.getTabCount(); i++) {
             Component component = tabs.getComponentAt(i);
@@ -49,6 +52,7 @@ public final class MainFrameListener {
                 new StatisticsViewListener(statisticsView, session);
             } else if (component instanceof CRUDView crudView) {
                 CrudViewListener listener = new CrudViewListener(crudView, session);
+                crudListeners.add(listener);
                 if (crudView.getEntityType() == EntityType.CATEGORIA) {
                     categoryListener = listener;
                 } else if (crudView.getEntityType() == EntityType.RECURSO) {
@@ -74,6 +78,22 @@ public final class MainFrameListener {
         }
         if (resourceListener != null) {
             resourceListener.refreshCategoryOptions();
+        }
+
+        // Los tres CRUD (Funcionarios/Categorías/Recursos) se arman una sola
+        // vez al iniciar sesión y quedan vivos en sus pestañas mientras dure
+        // la sesión: si se registra o elimina algo en uno de ellos, los
+        // otros deben refrescar su propio listado con los datos ya
+        // actualizados, en vez de mostrar la foto de su última búsqueda
+        // hasta que el usuario la repita manualmente.
+        for (CrudViewListener listener : crudListeners) {
+            listener.setAfterAnyChange(() -> {
+                for (CrudViewListener other : crudListeners) {
+                    if (other != listener) {
+                        other.refresh();
+                    }
+                }
+            });
         }
     }
 }

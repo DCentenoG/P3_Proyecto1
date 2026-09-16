@@ -3,9 +3,11 @@ package Controller;
 import Model.Employee;
 import Model.Reservation;
 import Model.Resource;
+import View.DatePickerDialog;
 import View.StatisticsView;
 
 import javax.swing.JTable;
+import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -35,8 +37,46 @@ public final class StatisticsViewListener {
     }
 
     private void wire() {
-        view.getResourcesPanel().getSearchButton().addActionListener(e -> onSearch(view.getResourcesPanel(), true));
-        view.getActivitiesPanel().getSearchButton().addActionListener(e -> onSearch(view.getActivitiesPanel(), false));
+        wirePanel(view.getResourcesPanel(), true);
+        wirePanel(view.getActivitiesPanel(), false);
+    }
+
+    private void wirePanel(StatisticsView.StatPanel panel, boolean byCategory) {
+        panel.getSearchButton().addActionListener(e -> onSearch(panel, byCategory));
+        panel.getStartDatePickerButton().addActionListener(e -> onPickStartDate(panel));
+        panel.getEndDatePickerButton().addActionListener(e -> onPickEndDate(panel));
+    }
+
+    // ------------------------------------------------------------------
+    // Selectores de fecha (con restricción cruzada inicio/fin)
+    // ------------------------------------------------------------------
+
+    private void onPickStartDate(StatisticsView.StatPanel panel) {
+        LocalDate initial = parseDateOrNull(panel.getStartDateField().getText());
+        // La fecha de inicio no puede quedar después de la fecha de fin ya elegida (si existe).
+        LocalDate max = parseDateOrNull(panel.getEndDateField().getText());
+        LocalDate picked = DatePickerDialog.show(SwingUtilities.getWindowAncestor(view), initial, null, max);
+        if (picked != null) {
+            panel.getStartDateField().setText(picked.format(DATE_FORMAT));
+        }
+    }
+
+    private void onPickEndDate(StatisticsView.StatPanel panel) {
+        LocalDate initial = parseDateOrNull(panel.getEndDateField().getText());
+        // La fecha de fin no puede quedar antes de la fecha de inicio ya elegida (si existe).
+        LocalDate min = parseDateOrNull(panel.getStartDateField().getText());
+        LocalDate picked = DatePickerDialog.show(SwingUtilities.getWindowAncestor(view), initial, min, null);
+        if (picked != null) {
+            panel.getEndDateField().setText(picked.format(DATE_FORMAT));
+        }
+    }
+
+    private static LocalDate parseDateOrNull(String text) {
+        try {
+            return LocalDate.parse(text.trim(), DATE_FORMAT);
+        } catch (DateTimeParseException | NullPointerException ex) {
+            return null;
+        }
     }
 
     private void onSearch(StatisticsView.StatPanel panel, boolean byCategory) {

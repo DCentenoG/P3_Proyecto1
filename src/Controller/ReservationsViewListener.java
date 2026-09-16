@@ -4,9 +4,12 @@ import Model.Employee;
 import Model.Reservation;
 import Model.Resource;
 import Model.ResourceCategory;
+import View.DatePickerDialog;
 import View.ReservationsView;
+import View.TimePickerDialog;
 
 import javax.swing.JComboBox;
+import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -59,7 +62,58 @@ public final class ReservationsViewListener {
                 "La generación de reportes en PDF se implementará en una etapa posterior."));
         view.getAddCategoryButton().addActionListener(e -> onAddCategory());
         view.getRemoveCategoryButton().addActionListener(e -> onRemoveCategory());
+        view.getDateDropdownButton().addActionListener(e -> onPickDate());
+        view.getStartTimeButton().addActionListener(e -> onPickStartTime());
+        view.getEndTimeButton().addActionListener(e -> onPickEndTime());
         TableInteractionUtil.deselectOnClickOutside(view.getReservationsTable(), view.getCancelButton());
+    }
+
+    // ------------------------------------------------------------------
+    // Selectores de fecha/hora
+    // ------------------------------------------------------------------
+
+    private void onPickDate() {
+        LocalDate initial = parseDateOrNull(view.getDateField().getText());
+        LocalDate picked = DatePickerDialog.show(SwingUtilities.getWindowAncestor(view), initial, null, null);
+        if (picked != null) {
+            view.getDateField().setText(picked.format(DATE_FORMAT));
+        }
+    }
+
+    private void onPickStartTime() {
+        LocalTime initial = parseTimeOrNull(view.getStartTimeField().getText());
+        // La hora de inicio no puede quedar después de la hora de fin ya elegida (si existe).
+        LocalTime max = parseTimeOrNull(view.getEndTimeField().getText());
+        LocalTime picked = TimePickerDialog.show(SwingUtilities.getWindowAncestor(view), initial, null, max);
+        if (picked != null) {
+            view.getStartTimeField().setText(picked.format(TIME_FORMAT));
+        }
+    }
+
+    private void onPickEndTime() {
+        LocalTime initial = parseTimeOrNull(view.getEndTimeField().getText());
+        // La hora de fin no puede quedar antes de la hora de inicio ya elegida (si existe).
+        LocalTime min = parseTimeOrNull(view.getStartTimeField().getText());
+        LocalTime picked = TimePickerDialog.show(SwingUtilities.getWindowAncestor(view), initial, min, null);
+        if (picked != null) {
+            view.getEndTimeField().setText(picked.format(TIME_FORMAT));
+        }
+    }
+
+    private static LocalDate parseDateOrNull(String text) {
+        try {
+            return LocalDate.parse(text.trim(), DATE_FORMAT);
+        } catch (DateTimeParseException | NullPointerException ex) {
+            return null;
+        }
+    }
+
+    private static LocalTime parseTimeOrNull(String text) {
+        try {
+            return LocalTime.parse(text.trim(), TIME_FORMAT);
+        } catch (DateTimeParseException | NullPointerException ex) {
+            return null;
+        }
     }
 
     private void loadCategoryOptions() {

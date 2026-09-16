@@ -13,6 +13,9 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
+import javax.swing.plaf.basic.ComboPopup;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
 import java.awt.Color;
@@ -206,6 +209,58 @@ public final class UITheme {
         combo.setBorder(BorderFactory.createLineBorder(FIELD_BORDER));
         int width = Math.max(combo.getPreferredSize().width, FIELD_MIN_WIDTH);
         combo.setPreferredSize(new Dimension(width, FIELD_HEIGHT));
+        styleComboPopupScrollBar(combo);
+    }
+
+    /**
+     * Aplica la misma barra de scroll delgada y sin flechas
+     * ({@link FlatScrollBarUI}) que usan las tablas y demás
+     * {@link JScrollPane} de la aplicación (ver {@link #styleScrollPane})
+     * al panel desplegable de un combo, en vez de la barra con relieve por
+     * defecto del Look &amp; Feel. Swing arma ese panel (un
+     * {@link JScrollPane} interno, siempre presente aunque la lista no
+     * necesite scroll) recién la primera vez que se despliega, así que se
+     * engancha con un {@link PopupMenuListener} en lugar de tocarlo al
+     * crear el combo.
+     */
+    private static void styleComboPopupScrollBar(JComboBox<?> combo) {
+        combo.addPopupMenuListener(new PopupMenuListener() {
+            @Override
+            public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+                Object accessibleChild = combo.getAccessibleContext().getAccessibleChild(0);
+                if (!(accessibleChild instanceof ComboPopup comboPopup)) {
+                    return;
+                }
+                Component ancestor = comboPopup.getList();
+                while (ancestor != null && !(ancestor instanceof JScrollPane)) {
+                    ancestor = ancestor.getParent();
+                }
+                if (ancestor instanceof JScrollPane scrollPane) {
+                    scrollPane.setBorder(BorderFactory.createEmptyBorder());
+                    // El panel desplegable de un combo normalmente no trae
+                    // barra horizontal (la lista no se desborda en ese eje),
+                    // así que cada una se estiliza solo si de verdad existe.
+                    if (scrollPane.getVerticalScrollBar() != null) {
+                        scrollPane.getVerticalScrollBar().setUI(new FlatScrollBarUI());
+                        scrollPane.getVerticalScrollBar().setPreferredSize(new Dimension(10, 0));
+                    }
+                    if (scrollPane.getHorizontalScrollBar() != null) {
+                        scrollPane.getHorizontalScrollBar().setUI(new FlatScrollBarUI());
+                        scrollPane.getHorizontalScrollBar().setPreferredSize(new Dimension(0, 10));
+                    }
+                }
+            }
+
+            @Override
+            public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+                // No hay nada que limpiar: la barra se re-estiliza cada vez que se despliega.
+            }
+
+            @Override
+            public void popupMenuCanceled(PopupMenuEvent e) {
+                // No hay nada que limpiar.
+            }
+        });
     }
 
     /**
