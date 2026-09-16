@@ -5,6 +5,7 @@ import Model.Reservation;
 import Model.Resource;
 import Model.ResourceCategory;
 import View.CalendarView;
+import View.DatePickerDialog;
 import View.FilterBuilder;
 import View.ReservationDetailsDialog;
 import View.ResourceCalendar;
@@ -61,6 +62,7 @@ public final class CalendarViewListener {
         view.getSearchButton().addActionListener(e -> onSearch());
         view.getPrintButton().addActionListener(e -> DialogHelper.info(view, "Imprimir",
                 "La generación de reportes en PDF se implementará en una etapa posterior."));
+        view.getDatePickerButton().addActionListener(e -> onPickDate());
 
         JTable table = view.getResourceCalendar().getTable();
         table.addMouseListener(new MouseAdapter() {
@@ -102,6 +104,23 @@ public final class CalendarViewListener {
         }
         if (previousSelection != null) {
             combo.setSelectedItem(previousSelection);
+        }
+    }
+
+    /** Único campo de fecha de esta pantalla: sin pareja inicio/fin, no hay rango que restringir. */
+    private void onPickDate() {
+        LocalDate initial = parseDateOrNull(view.getDateField().getText());
+        LocalDate picked = DatePickerDialog.show(SwingUtilities.getWindowAncestor(view), initial, null, null);
+        if (picked != null) {
+            view.getDateField().setText(picked.format(DATE_FORMAT));
+        }
+    }
+
+    private static LocalDate parseDateOrNull(String text) {
+        try {
+            return LocalDate.parse(text.trim(), DATE_FORMAT);
+        } catch (DateTimeParseException | NullPointerException ex) {
+            return null;
         }
     }
 

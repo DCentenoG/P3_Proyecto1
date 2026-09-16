@@ -47,6 +47,15 @@ public final class CrudViewListener {
     /** Se invoca tras crear/editar/borrar una categoría, para refrescar el combo de Recursos. */
     private Runnable afterCategoryChange = () -> { };
 
+    /**
+     * Se invoca tras crear/editar/borrar en ESTE CRUD, para que los otros
+     * CRUD del sistema (armados una sola vez al abrir la aplicación y
+     * mantenidos vivos en las demás pestañas) refresquen su propio
+     * listado con los datos actuales, en vez de mostrar la foto desactualizada
+     * de la última búsqueda hasta que el usuario vuelva a buscar manualmente.
+     */
+    private Runnable afterAnyChange = () -> { };
+
     public CrudViewListener(CRUDView view, SessionContext session) {
         this.view = view;
         this.session = session;
@@ -69,6 +78,15 @@ public final class CrudViewListener {
 
     public void setAfterCategoryChange(Runnable callback) {
         this.afterCategoryChange = (callback != null) ? callback : () -> { };
+    }
+
+    public void setAfterAnyChange(Runnable callback) {
+        this.afterAnyChange = (callback != null) ? callback : () -> { };
+    }
+
+    /** Vuelve a ejecutar la última búsqueda (mismos criterios ya puestos en los filtros) contra los datos actuales. */
+    public void refresh() {
+        runSearch(view.getFilterBuilder());
     }
 
     /** Reconstruye el combo de categorías del filtro de Recursos con las categorías actuales. */
@@ -192,8 +210,11 @@ public final class CrudViewListener {
                 yield new Object[]{category.getId(), category.getDescription()};
             }
             case RECURSO -> {
+                // El orden debe calzar con EntityType.RECURSO.getTableColumns()
+                // ("Categoría", "ID", "Descripción"), que a propósito no es el
+                // mismo orden que el formulario de Agregar/Editar.
                 Resource resource = (Resource) entity;
-                yield new Object[]{resource.getId(), resource.getResourceCategoryReference().getDescription(),
+                yield new Object[]{resource.getResourceCategoryReference().getDescription(), resource.getId(),
                         resource.getDescription()};
             }
         };
@@ -436,6 +457,7 @@ public final class CrudViewListener {
 
     private void refreshAfterChange() {
         runSearch(view.getFilterBuilder());
+        afterAnyChange.run();
     }
 
     private static boolean nonBlank(String value) {

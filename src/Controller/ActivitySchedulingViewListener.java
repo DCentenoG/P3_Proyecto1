@@ -4,6 +4,7 @@ import Model.Employee;
 import Model.Reservation;
 import View.ActivityCalendar;
 import View.ActivitySchedulingView;
+import View.DatePickerDialog;
 import View.ReservationDetailsDialog;
 
 import javax.swing.JTable;
@@ -54,6 +55,7 @@ public final class ActivitySchedulingViewListener {
         view.getSearchButton().addActionListener(e -> onSearch());
         view.getPrintButton().addActionListener(e -> DialogHelper.info(view, "Imprimir",
                 "La generación de reportes en PDF se implementará en una etapa posterior."));
+        view.getWeekPickerButton().addActionListener(e -> onPickWeek());
 
         JTable table = view.getActivityCalendar().getTable();
         table.addMouseListener(new MouseAdapter() {
@@ -82,6 +84,23 @@ public final class ActivitySchedulingViewListener {
                 }
             }
         });
+    }
+
+    /** Único campo de fecha de esta pantalla: sin pareja inicio/fin, no hay rango que restringir. */
+    private void onPickWeek() {
+        LocalDate initial = parseDateOrNull(view.getWeekField().getText());
+        LocalDate picked = DatePickerDialog.show(SwingUtilities.getWindowAncestor(view), initial, null, null);
+        if (picked != null) {
+            view.getWeekField().setText(picked.format(DATE_FORMAT));
+        }
+    }
+
+    private static LocalDate parseDateOrNull(String text) {
+        try {
+            return LocalDate.parse(text.trim(), DATE_FORMAT);
+        } catch (DateTimeParseException | NullPointerException ex) {
+            return null;
+        }
     }
 
     private void onSearch() {
