@@ -14,15 +14,10 @@ import View.ReservationDetailsDialog;
 import View.ResourceCalendar;
 
 import javax.swing.JComboBox;
-import javax.swing.JFileChooser;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
-import java.awt.Desktop;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -30,7 +25,6 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -275,7 +269,7 @@ public final class CalendarViewListener {
 
         try {
             byte[] pdf = ReportService.generatePdf("/ReportDesign/calendarizacion.jrxml", rows, parameters);
-            saveAndOpenPdf(pdf);
+            DialogHelper.savePdfAndOpen(view, pdf, "calendarizacion.pdf", "Calendarización");
         } catch (ReportException ex) {
             DialogHelper.error(view, "No fue posible generar el reporte: " + ex.getMessage());
         }
@@ -298,44 +292,4 @@ public final class CalendarViewListener {
         return rows;
     }
 
-    /** Deja que el usuario elija dónde guardar el PDF y, si es posible, lo abre con el visor por defecto. */
-    private void saveAndOpenPdf(byte[] pdf) {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setSelectedFile(new File("calendarizacion.pdf"));
-        int result = chooser.showSaveDialog(view);
-        if (result != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
-
-        File target = chooser.getSelectedFile();
-        if (!target.getName().toLowerCase(Locale.ROOT).endsWith(".pdf")) {
-            target = new File(target.getParentFile(), target.getName() + ".pdf");
-        }
-
-        try (FileOutputStream out = new FileOutputStream(target)) {
-            out.write(pdf);
-        } catch (IOException ex) {
-            DialogHelper.error(view, "No fue posible guardar el archivo PDF: " + ex.getMessage());
-            return;
-        }
-
-        DialogHelper.info(view, "Calendarización", "Reporte generado correctamente: " + target.getName());
-        openIfPossible(target);
-    }
-
-    /** Abre el PDF recién generado con la aplicación asociada del sistema operativo, si el entorno lo permite. */
-    private void openIfPossible(File file) {
-        if (!Desktop.isDesktopSupported()) {
-            return;
-        }
-        Desktop desktop = Desktop.getDesktop();
-        if (!desktop.isSupported(Desktop.Action.OPEN)) {
-            return;
-        }
-        try {
-            desktop.open(file);
-        } catch (IOException ignored) {
-            // No hay visor de PDF asociado, o falló al abrirlo: el archivo ya quedó guardado igual.
-        }
-    }
 }
