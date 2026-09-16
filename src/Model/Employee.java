@@ -1,6 +1,9 @@
 package Model;
 
 import java.util.ArrayList;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
 
 public class Employee extends User{
     //Attributes
@@ -49,5 +52,41 @@ public class Employee extends User{
     }
 
 
+    /*
+     * Intenta crear una reserva para este funcionario, asignando a cada
+     * categoría requerida el primer recurso disponible en ese horario.
+     * Si CUALQUIER categoría se queda sin recursos disponibles, la reserva
+     * NO se agrega (todo o nada) y se retorna la lista de categorías sin
+     * disponibilidad. Si la lista retornada está vacía, la reserva se creó
+     * y ya quedó agregada a este funcionario.
+     */
+    public List<String> tryBook(String activity, LocalDate date, LocalTime startTime, LocalTime endTime,
+                                List<ResourceCategory> requiredCategories, UserContainer users) {
+
+        Reservation reservation = new Reservation(activity, date, startTime, endTime);
+        List<String> unavailableCategories = new ArrayList<>();
+
+        for (ResourceCategory category : requiredCategories) {
+            boolean assigned = false;
+            for (Resource resource : category.getResources()) {
+                // addResource ya verifica, contra TODAS las reservas de TODOS los
+                // funcionarios, que el recurso no esté ocupado en ese horario.
+                if (reservation.addResource(resource, users)) {
+                    assigned = true;
+                    break;
+                }
+            }
+            if (!assigned) {
+                unavailableCategories.add(category.getDescription());
+            }
+        }
+
+        if (!unavailableCategories.isEmpty()) {
+            return unavailableCategories; // se descarta todo el intento, nada queda a medias
+        }
+
+        reservations.add(reservation);
+        return List.of(); // éxito: lista vacía
+    }
 
 }
