@@ -4,6 +4,9 @@ import Model.Employee;
 import Model.Reservation;
 import Model.Resource;
 import Model.ResourceCategory;
+import Model.exceptions.CategoryNotFoundException;
+import Model.exceptions.EmployeeNotFoundException;
+import Model.exceptions.ResourceUnavailableException;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -49,21 +52,29 @@ public class ReservationService {
         List<ResourceCategory> categories = new ArrayList<>();
         List<String> unresolvedCategories = new ArrayList<>();
         for (String description : requiredCategoryDescriptions) {
-            ResourceCategory category = service.getCategories().getCategorybyDescription(description);
-            if (category == null) {
-                unresolvedCategories.add(description); // la categoría ni siquiera existe
-            } else {
+            try {
+                ResourceCategory category = service.getCategories().getCategorybyDescription(description);
                 categories.add(category);
+            } catch (CategoryNotFoundException e) {
+                unresolvedCategories.add(description);
             }
         }
 
-        List<String> unavailableCategories = employee.tryBook(activity.trim(), date, startTime, endTime, categories, service.getUsers());
+        if (!unresolvedCategories.isEmpty()) {
+            throw new ServiceException("No existe(n) la(s) siguiente(s) categoria(s): "
+                    + String.join(", ", unresolvedCategories));
+        }
 
-        List<String> allFailed = new ArrayList<>(unresolvedCategories);
-        allFailed.addAll(unavailableCategories);
-        if (!allFailed.isEmpty()) {
+        List<String> unavailableCategories = new ArrayList<>();
+        try {
+            employee.tryBook(activity.trim(), date, startTime, endTime, categories, service.getUsers());
+        } catch (ResourceUnavailableException e) {
+            unavailableCategories.addAll(e.getUnavailableCategories());
+        }
+
+        if (!unavailableCategories.isEmpty()) {
             throw new ServiceException("No hay disponibilidad para la(s) siguiente(s) categoria(s) en ese horario: "
-                    + String.join(", ", allFailed));
+                    + String.join(", ", unavailableCategories));
         }
 
         // Si llegamos aquí, allFailed está vacío: tryBook tuvo éxito y ya agregó
@@ -115,10 +126,11 @@ public class ReservationService {
     }
 
     private Employee requireEmployee(int employeeId) throws ServiceException {
-        Employee employee = service.getUsers().getEmployeeById(employeeId);
-        if (employee == null) {
-            throw new ServiceException("No existe ningun funcionario con el id '" + employeeId + "'.");
+        try {
+            return service.getUsers().getEmployeeById(employeeId);
+        } catch (EmployeeNotFoundException e) {
+            throw new ServiceException(
+                    "No existe ningun funcionario con el id '" + employeeId + "'.", e);
         }
-        return employee;
     }
 }
