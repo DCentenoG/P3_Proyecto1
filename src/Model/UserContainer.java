@@ -1,5 +1,7 @@
 package Model;
 
+import Model.exceptions.EmployeeNotFoundException;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -55,18 +57,21 @@ public class UserContainer {
         nextId++;
     }
 
-    public void removeEmployeeByNameAndPhoneNumber(String name, int phoneNumber) {
+    public void removeEmployeeByNameAndPhoneNumber(String name, int phoneNumber)
+            throws EmployeeNotFoundException {
         for (int i = 0; i < users.size(); i++) {
             if(users.get(i) instanceof Employee) {
                 if (((Employee) users.get(i)).getName().equals(name) && ((Employee) users.get(i)).getPhoneNumber() == phoneNumber) {
                     users.remove(i);
-                    break;
+                    return;
                 }
             }
         }
-    } //LANZAR EXCEPCION DE EMPLEADO NO EXISTENTE O DE ARGUMENTOS INVALIDOS
+        throw new EmployeeNotFoundException(
+                "No existe ningun funcionario con el nombre y telefono indicados.");
+    }
 
-    public Employee getEmployeeById(int id) {
+    public Employee getEmployeeById(int id) throws EmployeeNotFoundException {
         for (User user : users) {
             if (user instanceof Employee) {
                 if (((Employee) user).getId() == id) {
@@ -74,10 +79,11 @@ public class UserContainer {
                 }
             }
         }
-        return null; //LANZAR EXCEPCION DE EMPLEADO NO ENCONTRADO
+        throw new EmployeeNotFoundException(
+                "No existe ningun funcionario con el id '" + id + "'.");
     }
 
-    public Employee getEmployeeByName(String name) {
+    public Employee getEmployeeByName(String name) throws EmployeeNotFoundException {
         for (User user : users) {
             if (user instanceof Employee) {
                 if (((Employee) user).getName().equals(name)) {
@@ -85,7 +91,8 @@ public class UserContainer {
                 }
             }
         }
-        return null; //LANZAR EXCEPCION DE EMPLEADO NO ENCONTRADO
+        throw new EmployeeNotFoundException(
+                "No existe ningun funcionario con el nombre '" + name + "'.");
     }
 
     public ArrayList<Employee> getListOfEmployees() {
