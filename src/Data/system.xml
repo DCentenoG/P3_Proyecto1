@@ -22,9 +22,6 @@
                     <assignedResource categoryId="CAT-000001" resourceId="1"/>
                     <assignedResource categoryId="CAT-000003" resourceId="1"/>
                 </reservation>
-                <reservation activity="Prueba 2" date="2026-09-17" endTime="09:00" startTime="08:00">
-                    <assignedResource categoryId="CAT-000001" resourceId="1"/>
-                </reservation>
             </reservations>
         </user>
         <user id="3" name="Maria Gomez Solano" password="3" phoneNumber="87772222" type="EMPLOYEE">
