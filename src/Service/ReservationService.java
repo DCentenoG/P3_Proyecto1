@@ -72,17 +72,6 @@ public class ReservationService {
         return reservation;
     }
 
-    private boolean assignFirstAvailableResource(Reservation reservation, ResourceCategory category) {
-        for (Resource resource : category.getResources()) {
-            //addResource ya verifica, contra TODAS las reservas de TODOS los funcionarios,
-            //que el recurso no este ocupado en un horario que se traslape con este.
-            if (reservation.addResource(resource, service.getUsers())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public void cancelReservation(int employeeId, Reservation reservation) throws ServiceException {
         Employee employee = requireEmployee(employeeId);
         if (reservation == null) {
