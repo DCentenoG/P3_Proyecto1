@@ -48,21 +48,26 @@ public class ReservationService {
 
         Reservation reservation = new Reservation(activity.trim(), date, startTime, endTime);
 
-        List<String> unavailableCategories = new ArrayList<>();
-        for (String categoryDescription : requiredCategoryDescriptions) {
-            ResourceCategory category = service.getCategories().getCategorybyDescription(categoryDescription);
-            if (category == null || !assignFirstAvailableResource(reservation, category)) {
-                unavailableCategories.add(categoryDescription);
+        // DESPUÉS
+        List<ResourceCategory> categories = new ArrayList<>();
+        List<String> unresolvedCategories = new ArrayList<>();
+        for (String description : requiredCategoryDescriptions) {
+            ResourceCategory category = service.getCategories().getCategorybyDescription(description);
+            if (category == null) {
+                unresolvedCategories.add(description); // la categoría ni siquiera existe
+            } else {
+                categories.add(category);
             }
         }
 
-        if (!unavailableCategories.isEmpty()) {
-            throw new ServiceException(
-                    "No hay disponibilidad para la(s) siguiente(s) categoria(s) en ese horario: "
-                            + String.join(", ", unavailableCategories));
-        }
+        List<String> unavailableCategories = employee.tryBook(activity.trim(), date, startTime, endTime, categories, service.getUsers());
 
-        employee.getReservations().add(reservation);
+        List<String> allFailed = new ArrayList<>(unresolvedCategories);
+        allFailed.addAll(unavailableCategories);
+        if (!allFailed.isEmpty()) {
+            throw new ServiceException("No hay disponibilidad para la(s) siguiente(s) categoria(s) en ese horario: "
+                    + String.join(", ", allFailed));
+        }
         service.save();
         return reservation;
     }
