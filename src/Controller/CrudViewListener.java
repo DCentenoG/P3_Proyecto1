@@ -24,13 +24,16 @@ import java.util.Locale;
  * independientes "Agregar", "Editar" y "Borrar". También abre y conecta
  * el {@link FormDialog} usado para crear o editar un registro.
  * <p>
- * Reglas pedidas: no se puede buscar sin haber aplicado al menos un
- * criterio en los filtros; no se puede editar ni borrar sin haber
- * seleccionado un elemento de la tabla (Agregar sí funciona sin
- * selección); y tanto "Guardar" como "Borrar" piden confirmación antes
- * de ejecutarse. Por ahora no se validan los datos ingresados en el
- * formulario de agregar/editar (eso se conectará en una etapa
- * posterior, junto con las validaciones/excepciones del Model).
+ * Reglas pedidas: buscar sin haber aplicado ningún criterio en los
+ * filtros (todos los campos vacíos y, en Recursos, la categoría en
+ * "(Todas)") no es un error: simplemente reestablece la tabla al
+ * listado completo, igual que al entrar a la pantalla. No se puede
+ * editar ni borrar sin haber seleccionado un elemento de la tabla
+ * (Agregar sí funciona sin selección); y tanto "Guardar" como "Borrar"
+ * piden confirmación antes de ejecutarse. Por ahora no se validan los
+ * datos ingresados en el formulario de agregar/editar (eso se
+ * conectará en una etapa posterior, junto con las
+ * validaciones/excepciones del Model).
  */
 public final class CrudViewListener {
 
@@ -49,6 +52,10 @@ public final class CrudViewListener {
         this.session = session;
         this.entityType = view.getEntityType();
         wire();
+        // Se muestra el listado completo desde el inicio (sin exigir
+        // criterios de búsqueda), en vez de dejar la tabla vacía hasta la
+        // primera búsqueda manual del usuario.
+        runSearch(view.getFilterBuilder());
     }
 
     private void wire() {
@@ -56,6 +63,8 @@ public final class CrudViewListener {
         view.getAddButton().addActionListener(e -> onAdd());
         view.getEditButton().addActionListener(e -> onEdit());
         view.getDeleteButton().addActionListener(e -> onDelete());
+        TableInteractionUtil.deselectOnClickOutside(view.getTable(),
+                view.getAddButton(), view.getEditButton(), view.getDeleteButton());
     }
 
     public void setAfterCategoryChange(Runnable callback) {
@@ -89,24 +98,10 @@ public final class CrudViewListener {
     // ------------------------------------------------------------------
 
     private void onSearch() {
-        FilterBuilder filters = view.getFilterBuilder();
-        if (!hasAnyCriteria(filters)) {
-            DialogHelper.warn(view, "Debe indicar al menos un criterio de búsqueda antes de continuar.");
-            return;
-        }
-        runSearch(filters);
-    }
-
-    private boolean hasAnyCriteria(FilterBuilder filters) {
-        return switch (entityType) {
-            case FUNCIONARIO -> nonBlank(filters.getTextValue("ID")) || nonBlank(filters.getTextValue("Nombre"));
-            case CATEGORIA -> nonBlank(filters.getTextValue("Descripción"));
-            case RECURSO -> {
-                Object selectedCategory = filters.getSelectedValue("Categoría");
-                boolean categoryApplied = selectedCategory != null && !FilterBuilder.NO_FILTER.equals(selectedCategory);
-                yield categoryApplied || nonBlank(filters.getTextValue("Descripción"));
-            }
-        };
+        // No exigir ningún criterio: dejar todos los campos vacíos (o la
+        // categoría de Recursos en "(Todas)") es una búsqueda válida que
+        // simplemente reestablece la tabla al listado completo.
+        runSearch(view.getFilterBuilder());
     }
 
     private void runSearch(FilterBuilder filters) {
@@ -162,6 +157,13 @@ public final class CrudViewListener {
     private void renderResults() {
         JTable table = view.getTable();
         DefaultTableModel model = (DefaultTableModel) table.getModel();
+
+        if (currentResults.isEmpty()) {
+            model.setRowCount(0);
+            view.showEmptyState(true);
+            return;
+        }
+        view.showEmptyState(false);
         model.setRowCount(Math.max(7, currentResults.size()));
 
         for (int row = 0; row < model.getRowCount(); row++) {

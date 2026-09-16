@@ -7,7 +7,6 @@ import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
-import java.awt.FlowLayout;
 import java.time.LocalDate;
 
 /**
@@ -46,9 +45,7 @@ public class ActivitySchedulingView extends JPanel {
 
         header.add(UITheme.leftAligned(UITheme.createSectionTitle("Actividades")));
         header.add(Box.createVerticalStrut(16));
-        header.add(UITheme.leftAligned(UITheme.createLabel("Semana de referencia")));
-        header.add(Box.createVerticalStrut(6));
-        header.add(UITheme.centered(buildWeekRow()));
+        header.add(UITheme.leftAligned(buildOperationsPanel()));
         header.add(Box.createVerticalStrut(18));
         header.add(UITheme.leftAligned(UITheme.createLabel("Calendarización de actividades")));
         header.add(Box.createVerticalStrut(6));
@@ -56,9 +53,29 @@ public class ActivitySchedulingView extends JPanel {
         return header;
     }
 
+    /**
+     * Sub-panel de operaciones del header: el título "Semana de
+     * referencia" seguido del selector de semana y los íconos de
+     * buscar/imprimir, todos alineados entre sí (a diferencia del título
+     * de sección y "Calendarización de actividades", que se alinean con
+     * el margen izquierdo de la grilla).
+     */
+    private JPanel buildOperationsPanel() {
+        JPanel panel = new JPanel();
+        panel.setOpaque(false);
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+
+        panel.add(UITheme.leftAligned(UITheme.createLabel("Semana de referencia")));
+        panel.add(Box.createVerticalStrut(6));
+        panel.add(UITheme.leftAligned(buildWeekRow()));
+
+        return panel;
+    }
+
     private JPanel buildWeekRow() {
         weekField = new JTextField(20);
         UITheme.styleField(weekField);
+        UITheme.lockAsPickerOnly(weekField); // Semana: solo se selecciona con el botón, no se escribe.
         weekPickerButton = UITheme.createPickerButton("▾");
 
         JPanel group = new JPanel(new BorderLayout(8, 0));
@@ -71,12 +88,7 @@ public class ActivitySchedulingView extends JPanel {
         printButton = UITheme.createIconOnlyButton(IconLibrary.PRINTER, 22);
         printButton.setToolTipText("Imprimir");
 
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 0));
-        row.setOpaque(false);
-        row.add(group);
-        row.add(searchButton);
-        row.add(printButton);
-        return row;
+        return UITheme.row(16, group, searchButton, printButton);
     }
 
     // ---- Métodos de acceso para el futuro controlador ----

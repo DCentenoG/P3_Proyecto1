@@ -8,7 +8,6 @@ import javax.swing.JComboBox;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
-import java.awt.FlowLayout;
 import java.util.List;
 
 /**
@@ -21,6 +20,7 @@ import java.util.List;
 public class CalendarView extends JPanel {
 
     private JTextField dateField;
+    private JButton datePickerButton;
     private JComboBox<String> categoryCombo;
     private JButton searchButton;
     private JButton printButton;
@@ -48,9 +48,7 @@ public class CalendarView extends JPanel {
 
         header.add(UITheme.leftAligned(UITheme.createSectionTitle("Calendarización")));
         header.add(Box.createVerticalStrut(16));
-        header.add(UITheme.leftAligned(UITheme.createLabel("Filtros")));
-        header.add(Box.createVerticalStrut(6));
-        header.add(UITheme.centered(buildFilterRow(categoryOptions)));
+        header.add(UITheme.leftAligned(buildOperationsPanel(categoryOptions)));
         header.add(Box.createVerticalStrut(18));
         header.add(UITheme.leftAligned(UITheme.createLabel("Calendarización de recursos")));
         header.add(Box.createVerticalStrut(6));
@@ -58,13 +56,35 @@ public class CalendarView extends JPanel {
         return header;
     }
 
-    private JPanel buildFilterRow(List<String> categoryOptions) {
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER, 24, 0));
-        row.setOpaque(false);
+    /**
+     * Sub-panel de operaciones del header: el título "Filtros" seguido de
+     * los campos de fecha/categoría y los íconos de buscar/imprimir, todos
+     * alineados entre sí (a diferencia del título de sección y
+     * "Calendarización de recursos", que se alinean con el margen
+     * izquierdo de la grilla).
+     */
+    private JPanel buildOperationsPanel(List<String> categoryOptions) {
+        JPanel panel = new JPanel();
+        panel.setOpaque(false);
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
+        panel.add(UITheme.leftAligned(UITheme.createLabel("Filtros")));
+        panel.add(Box.createVerticalStrut(6));
+        panel.add(UITheme.leftAligned(buildFilterRow(categoryOptions)));
+
+        return panel;
+    }
+
+    private JPanel buildFilterRow(List<String> categoryOptions) {
         dateField = new JTextField(12);
         UITheme.styleField(dateField);
-        row.add(UITheme.labeledField("Fecha", dateField));
+        UITheme.lockAsPickerOnly(dateField); // Fecha: solo se selecciona con el botón, no se escribe.
+        datePickerButton = UITheme.createPickerButton("▾");
+
+        JPanel dateGroup = new JPanel(new BorderLayout(8, 0));
+        dateGroup.setOpaque(false);
+        dateGroup.add(dateField, BorderLayout.CENTER);
+        dateGroup.add(datePickerButton, BorderLayout.EAST);
 
         categoryCombo = new JComboBox<>();
         categoryCombo.addItem(FilterBuilder.NO_FILTER);
@@ -72,26 +92,27 @@ public class CalendarView extends JPanel {
             categoryCombo.addItem(option);
         }
         UITheme.styleCombo(categoryCombo);
-        row.add(UITheme.labeledField("Categoría", categoryCombo));
 
         searchButton = UITheme.createIconOnlyButton(IconLibrary.SEARCH_BLUE, 22);
         searchButton.setToolTipText("Buscar");
         printButton = UITheme.createIconOnlyButton(IconLibrary.PRINTER, 22);
         printButton.setToolTipText("Imprimir");
 
-        JPanel icons = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
-        icons.setOpaque(false);
-        icons.add(searchButton);
-        icons.add(printButton);
-        row.add(icons);
-
-        return row;
+        return UITheme.row(24,
+                UITheme.labeledField("Fecha", dateGroup),
+                UITheme.labeledField("Categoría", categoryCombo),
+                UITheme.row(12, searchButton, printButton));
     }
 
     // ---- Métodos de acceso para el futuro controlador ----
 
     public JTextField getDateField() {
         return dateField;
+    }
+
+    /** Botón selector de fecha junto al campo "Fecha" (solo diseño; sin lógica de calendario todavía). */
+    public JButton getDatePickerButton() {
+        return datePickerButton;
     }
 
     public JComboBox<String> getCategoryCombo() {

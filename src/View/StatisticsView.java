@@ -12,7 +12,6 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 
@@ -63,10 +62,16 @@ public class StatisticsView extends JPanel {
     public static final class StatPanel extends JPanel {
 
         private final JTextField startDateField;
+        private final JButton startDatePickerButton;
         private final JTextField endDateField;
+        private final JButton endDatePickerButton;
         private final JButton searchButton;
         private final JTable table;
         private final BarChart barChart;
+
+        /** Tamaño reducido de los botones selectores de fecha, para el espacio angosto de este panel. */
+        private static final int DATE_PICKER_WIDTH = 26;
+        private static final int DATE_PICKER_HEIGHT = 24;
 
         private StatPanel(String title, String firstColumn, String secondColumn) {
             super(new BorderLayout(0, 12));
@@ -75,8 +80,14 @@ public class StatisticsView extends JPanel {
 
             startDateField = new JTextField(9);
             UITheme.styleField(startDateField);
+            UITheme.lockAsPickerOnly(startDateField); // Fecha: solo se selecciona con el botón, no se escribe.
+            startDatePickerButton = UITheme.createPickerButton("▾", DATE_PICKER_WIDTH, DATE_PICKER_HEIGHT);
+
             endDateField = new JTextField(9);
             UITheme.styleField(endDateField);
+            UITheme.lockAsPickerOnly(endDateField);
+            endDatePickerButton = UITheme.createPickerButton("▾", DATE_PICKER_WIDTH, DATE_PICKER_HEIGHT);
+
             searchButton = UITheme.createIconOnlyButton(IconLibrary.SEARCH_BLACK, 20);
             searchButton.setToolTipText("Buscar");
 
@@ -127,17 +138,24 @@ public class StatisticsView extends JPanel {
         }
 
         private JPanel buildDateRow() {
-            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 14, 0));
-            row.setOpaque(false);
-            row.add(UITheme.labeledField("Fecha inicio", startDateField));
-            row.add(UITheme.labeledField("Fecha fin", endDateField));
+            JPanel startGroup = new JPanel(new BorderLayout(4, 0));
+            startGroup.setOpaque(false);
+            startGroup.add(startDateField, BorderLayout.CENTER);
+            startGroup.add(startDatePickerButton, BorderLayout.EAST);
+
+            JPanel endGroup = new JPanel(new BorderLayout(4, 0));
+            endGroup.setOpaque(false);
+            endGroup.add(endDateField, BorderLayout.CENTER);
+            endGroup.add(endDatePickerButton, BorderLayout.EAST);
 
             JPanel searchWrapper = new JPanel(new GridBagLayout());
             searchWrapper.setOpaque(false);
             searchWrapper.add(searchButton);
-            row.add(searchWrapper);
 
-            return row;
+            return UITheme.row(14,
+                    UITheme.labeledField("Fecha inicio", startGroup),
+                    UITheme.labeledField("Fecha fin", endGroup),
+                    searchWrapper);
         }
 
         // ---- Métodos de acceso para el futuro controlador ----
@@ -146,8 +164,18 @@ public class StatisticsView extends JPanel {
             return startDateField;
         }
 
+        /** Botón selector de fecha junto a "Fecha inicio" (solo diseño; sin lógica de calendario todavía). */
+        public JButton getStartDatePickerButton() {
+            return startDatePickerButton;
+        }
+
         public JTextField getEndDateField() {
             return endDateField;
+        }
+
+        /** Botón selector de fecha junto a "Fecha fin" (solo diseño; sin lógica de calendario todavía). */
+        public JButton getEndDatePickerButton() {
+            return endDatePickerButton;
         }
 
         public JButton getSearchButton() {

@@ -41,6 +41,7 @@ public class MainFrame extends JFrame {
         String roleLabel = isAdmin ? "ADMINISTRADOR" : "FUNCIONARIO";
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setIconImages(IconLibrary.getAppIconImages());
 
         JPanel content = new JPanel(new BorderLayout());
         content.setBackground(UITheme.BACKGROUND);

@@ -36,6 +36,7 @@ public class LoginFrame extends JFrame {
     private void initComponents() {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setResizable(false);
+        setIconImages(IconLibrary.getAppIconImages());
 
         JPanel content = new JPanel(new BorderLayout());
         content.setBackground(UITheme.BACKGROUND);

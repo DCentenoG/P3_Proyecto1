@@ -21,7 +21,7 @@ public final class TableBuilder {
 
     /** Construye la tabla de {@code entityType} con {@code blankRows} filas vacías de relleno. */
     public static JTable build(EntityType entityType, int blankRows) {
-        String[] columns = entityType.getColumns();
+        String[] columns = entityType.getTableColumns();
 
         DefaultTableModel model = new DefaultTableModel(new Object[Math.max(blankRows, 0)][columns.length], columns) {
             @Override

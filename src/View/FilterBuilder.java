@@ -1,10 +1,11 @@
 package View;
 
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
-import java.awt.FlowLayout;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,17 +16,27 @@ import java.util.Map;
  * (Descripción) o Recurso (Categoría, Descripción). Solo arma los
  * campos; la búsqueda en sí se dispara desde el manejo de eventos al
  * presionar el ícono de buscar.
+ * <p>
+ * El panel usa un {@link BoxLayout} horizontal (en vez de
+ * {@link java.awt.FlowLayout}) para que el primer campo (p. ej. "ID")
+ * quede exactamente en el borde izquierdo del panel, sin el margen
+ * adicional que {@code FlowLayout} reserva antes del primer componente;
+ * así la etiqueta "Búsqueda" puesta arriba en {@link CRUDView} queda
+ * perfectamente alineada con él.
  */
 public class FilterBuilder {
 
     /** Valor sentinela que representa "sin filtro aplicado" en los combos de filtro. */
     public static final String NO_FILTER = "(Todas)";
 
-    private final JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 24, 0));
+    private static final int FIELD_GAP = 24;
+
+    private final JPanel panel = new JPanel();
     private final Map<String, JComponent> fields = new LinkedHashMap<>();
 
     public FilterBuilder(EntityType entityType, List<String> categoryOptions) {
         panel.setOpaque(false);
+        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
         switch (entityType) {
             case FUNCIONARIO -> {
                 addTextFilter("ID");
@@ -43,7 +54,7 @@ public class FilterBuilder {
         JTextField field = new JTextField(14);
         UITheme.styleField(field);
         fields.put(label, field);
-        panel.add(UITheme.labeledField(label, field));
+        addToPanel(UITheme.labeledField(label, field));
     }
 
     private void addComboFilter(String label, List<String> options) {
@@ -54,7 +65,14 @@ public class FilterBuilder {
         }
         UITheme.styleCombo(combo);
         fields.put(label, combo);
-        panel.add(UITheme.labeledField(label, combo));
+        addToPanel(UITheme.labeledField(label, combo));
+    }
+
+    private void addToPanel(JComponent group) {
+        if (panel.getComponentCount() > 0) {
+            panel.add(Box.createHorizontalStrut(FIELD_GAP));
+        }
+        panel.add(group);
     }
 
     public JPanel getPanel() {

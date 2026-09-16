@@ -6,6 +6,8 @@ import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
@@ -59,6 +61,10 @@ public final class IconLibrary {
     public static final String WARNING = "warning.png";
     public static final String QUESTION = "question.png";
     public static final String INFORMATION = "information.png";
+    public static final String LOGO = "logo.png";
+
+    /** Tamaños generados para el ícono de la aplicación (ventana y barra de tareas). */
+    private static final int[] APP_ICON_SIZES = {16, 24, 32, 48, 64, 128, 256};
 
     private IconLibrary() {
         // Clase de utilidades: no debe instanciarse.
@@ -68,6 +74,20 @@ public final class IconLibrary {
     public static ImageIcon get(String fileName, int size) {
         String key = fileName + '@' + size;
         return CACHE.computeIfAbsent(key, k -> load(fileName, size));
+    }
+
+    /**
+     * Devuelve el logo de la aplicación ({@code logo.png}) en varias
+     * resoluciones, pensado para {@link javax.swing.JFrame#setIconImages}:
+     * el sistema operativo elige automáticamente la variante más nítida
+     * según dónde se use (ícono de la ventana, barra de tareas, alt-tab).
+     */
+    public static List<Image> getAppIconImages() {
+        List<Image> images = new ArrayList<>();
+        for (int size : APP_ICON_SIZES) {
+            images.add(get(LOGO, size).getImage());
+        }
+        return images;
     }
 
     private static ImageIcon load(String fileName, int size) {

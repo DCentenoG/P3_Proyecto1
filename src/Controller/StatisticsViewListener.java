@@ -43,8 +43,8 @@ public final class StatisticsViewListener {
         String startText = panel.getStartDateField().getText().trim();
         String endText = panel.getEndDateField().getText().trim();
 
-        if (startText.isEmpty() && endText.isEmpty()) {
-            DialogHelper.warn(view, "Debe indicar al menos una fecha (inicio o fin) antes de continuar.");
+        if (startText.isEmpty() || endText.isEmpty()) {
+            DialogHelper.warn(view, "Debe completar los campos de fecha inicio y fecha fin antes de continuar.");
             return;
         }
 

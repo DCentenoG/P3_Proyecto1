@@ -35,13 +35,14 @@ public final class MainFrameListener {
         JTabbedPane tabs = mainFrame.getTabbedPane();
         CrudViewListener resourceListener = null;
         CrudViewListener categoryListener = null;
+        CalendarViewListener calendarListener = null;
 
         for (int i = 0; i < tabs.getTabCount(); i++) {
             Component component = tabs.getComponentAt(i);
             if (component instanceof ReservationsView reservationsView) {
                 new ReservationsViewListener(reservationsView, session);
             } else if (component instanceof CalendarView calendarView) {
-                new CalendarViewListener(calendarView, session);
+                calendarListener = new CalendarViewListener(calendarView, session);
             } else if (component instanceof ActivitySchedulingView activityView) {
                 new ActivitySchedulingViewListener(activityView, session);
             } else if (component instanceof StatisticsView statisticsView) {
@@ -56,15 +57,23 @@ public final class MainFrameListener {
             }
         }
 
-        // El combo de categorías de Recursos se construyó vacío (MainFrame no conoce
-        // la sesión al crear las vistas); se sincroniza aquí con las categorías reales,
-        // y se mantiene sincronizado cada vez que Categorías cambia.
+        // El combo de categorías de Recursos (y el de Calendarización, que ya
+        // se sincroniza a sí mismo al construirse) se deben mantener
+        // sincronizados cada vez que Categorías cambia.
+        if (categoryListener != null && (resourceListener != null || calendarListener != null)) {
+            CrudViewListener finalResourceListener = resourceListener;
+            CalendarViewListener finalCalendarListener = calendarListener;
+            categoryListener.setAfterCategoryChange(() -> {
+                if (finalResourceListener != null) {
+                    finalResourceListener.refreshCategoryOptions();
+                }
+                if (finalCalendarListener != null) {
+                    finalCalendarListener.refreshCategoryOptions();
+                }
+            });
+        }
         if (resourceListener != null) {
             resourceListener.refreshCategoryOptions();
-            if (categoryListener != null) {
-                CrudViewListener finalResourceListener = resourceListener;
-                categoryListener.setAfterCategoryChange(finalResourceListener::refreshCategoryOptions);
-            }
         }
     }
 }

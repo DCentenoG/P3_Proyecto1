@@ -6,7 +6,7 @@ import Model.Resource;
 import Model.ResourceCategory;
 import View.ReservationsView;
 
-import javax.swing.DefaultListModel;
+import javax.swing.JComboBox;
 import javax.swing.table.DefaultTableModel;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -32,10 +32,8 @@ public final class ReservationsViewListener {
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
 
     private static final String HELP_MESSAGE =
-            "El botón de generación automática utiliza la frase que usted escriba en el campo "
-                    + "\"Frase\" para interpretar los detalles de la reserva (actividad, fecha, horario y "
-                    + "categorías de recursos requeridas) y completar el resto del formulario por usted. "
-                    + "Revise siempre los campos completados antes de guardar la reserva.";
+            "Interpreta la \"Frase\" escrita y completa el resto del formulario. "
+                    + "Revise los campos antes de guardar.";
 
     private final ReservationsView view;
     private final SessionContext session;
@@ -59,14 +57,41 @@ public final class ReservationsViewListener {
         view.getClearButton().addActionListener(e -> clearForm());
         view.getPrintButton().addActionListener(e -> DialogHelper.info(view, "Imprimir",
                 "La generación de reportes en PDF se implementará en una etapa posterior."));
+        view.getAddCategoryButton().addActionListener(e -> onAddCategory());
+        view.getRemoveCategoryButton().addActionListener(e -> onRemoveCategory());
+        TableInteractionUtil.deselectOnClickOutside(view.getReservationsTable(), view.getCancelButton());
     }
 
     private void loadCategoryOptions() {
-        DefaultListModel<String> model = new DefaultListModel<>();
+        JComboBox<String> combo = view.getCategoryCombo();
+        combo.removeAllItems();
         for (ResourceCategory category : session.getCategories().getCategories()) {
-            model.addElement(category.getDescription());
+            combo.addItem(category.getDescription());
         }
-        view.getCategoriesList().setModel(model);
+    }
+
+    private void onAddCategory() {
+        Object selected = view.getCategoryCombo().getSelectedItem();
+        if (selected == null) {
+            return;
+        }
+        String category = selected.toString();
+        DefaultTableModel model = (DefaultTableModel) view.getCategoriesTable().getModel();
+        for (int row = 0; row < model.getRowCount(); row++) {
+            if (category.equals(model.getValueAt(row, 0))) {
+                return; // ya está en la lista, no se duplica
+            }
+        }
+        model.addRow(new Object[]{category});
+    }
+
+    private void onRemoveCategory() {
+        int row = view.getCategoriesTable().getSelectedRow();
+        if (row < 0) {
+            DialogHelper.warn(view, "Debe seleccionar una categoría de la lista para quitarla.");
+            return;
+        }
+        ((DefaultTableModel) view.getCategoriesTable().getModel()).removeRow(row);
     }
 
     private void onAiFill() {
@@ -83,7 +108,7 @@ public final class ReservationsViewListener {
         String dateText = view.getDateField().getText().trim();
         String startText = view.getStartTimeField().getText().trim();
         String endText = view.getEndTimeField().getText().trim();
-        List<String> selectedCategories = view.getCategoriesList().getSelectedValuesList();
+        List<String> selectedCategories = view.getSelectedCategories();
 
         if (activity.isEmpty() || dateText.isEmpty() || startText.isEmpty() || endText.isEmpty()
                 || selectedCategories.isEmpty()) {
@@ -181,12 +206,19 @@ public final class ReservationsViewListener {
         view.getDateField().setText("");
         view.getStartTimeField().setText("");
         view.getEndTimeField().setText("");
-        view.getCategoriesList().clearSelection();
+        ((DefaultTableModel) view.getCategoriesTable().getModel()).setRowCount(0);
     }
 
     private void renderReservations() {
         DefaultTableModel model = (DefaultTableModel) view.getReservationsTable().getModel();
         List<Reservation> reservations = employee.getReservations();
+
+        if (reservations.isEmpty()) {
+            model.setRowCount(0);
+            view.showReservationsEmptyState(true);
+            return;
+        }
+        view.showReservationsEmptyState(false);
         model.setRowCount(Math.max(5, reservations.size()));
 
         for (int row = 0; row < model.getRowCount(); row++) {

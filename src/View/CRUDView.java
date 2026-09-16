@@ -4,10 +4,13 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.SwingConstants;
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.FlowLayout;
 import java.util.List;
 
@@ -30,6 +33,7 @@ public class CRUDView extends JPanel {
     private final JButton searchButton;
     private final JButton printButton;
     private final JTable table;
+    private final JPanel tableContainer;
     private final JButton addButton;
     private final JButton editButton;
     private final JButton deleteButton;
@@ -51,7 +55,18 @@ public class CRUDView extends JPanel {
         table = TableBuilder.build(entityType, 7);
         JScrollPane tableScroll = new JScrollPane(table);
         UITheme.styleScrollPane(tableScroll);
-        add(tableScroll, BorderLayout.CENTER);
+
+        JLabel emptyLabel = UITheme.createLabel("No hay ningún " + entityType.getSingularTitle() + " registrado.");
+        emptyLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        JPanel emptyPanel = new JPanel(new BorderLayout());
+        emptyPanel.setOpaque(false);
+        emptyPanel.add(emptyLabel, BorderLayout.CENTER);
+
+        tableContainer = new JPanel(new CardLayout());
+        tableContainer.setOpaque(false);
+        tableContainer.add(tableScroll, "table");
+        tableContainer.add(emptyPanel, "empty");
+        add(tableContainer, BorderLayout.CENTER);
 
         addButton = UITheme.createAddButton();
         editButton = UITheme.createEditButton();
@@ -67,9 +82,7 @@ public class CRUDView extends JPanel {
         header.add(UITheme.leftAligned(UITheme.createSectionTitle(entityType.getPluralTitle())));
         header.add(Box.createVerticalStrut(16));
 
-        header.add(UITheme.leftAligned(UITheme.createLabel("Búsqueda")));
-        header.add(Box.createVerticalStrut(6));
-        header.add(UITheme.centered(buildSearchRow()));
+        header.add(UITheme.leftAligned(buildOperationsPanel()));
         header.add(Box.createVerticalStrut(18));
 
         header.add(UITheme.leftAligned(UITheme.createLabel("Listado")));
@@ -78,13 +91,26 @@ public class CRUDView extends JPanel {
         return header;
     }
 
+    /**
+     * Sub-panel de operaciones del header: el título "Búsqueda" seguido de
+     * los filtros propios de la entidad y los íconos de buscar/imprimir,
+     * ambos alineados entre sí (a diferencia del título de la sección y
+     * "Listado", que se alinean con el margen izquierdo de la tabla).
+     */
+    private JPanel buildOperationsPanel() {
+        JPanel panel = new JPanel();
+        panel.setOpaque(false);
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+
+        panel.add(UITheme.leftAligned(UITheme.createLabel("Búsqueda")));
+        panel.add(Box.createVerticalStrut(6));
+        panel.add(UITheme.leftAligned(buildSearchRow()));
+
+        return panel;
+    }
+
     private JPanel buildSearchRow() {
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
-        row.setOpaque(false);
-        row.add(filterBuilder.getPanel());
-        row.add(searchButton);
-        row.add(printButton);
-        return row;
+        return UITheme.row(20, filterBuilder.getPanel(), searchButton, printButton);
     }
 
     private JPanel buildActionsRow() {
@@ -129,5 +155,11 @@ public class CRUDView extends JPanel {
 
     public JButton getDeleteButton() {
         return deleteButton;
+    }
+
+    /** Alterna entre la tabla de "Listado" y el mensaje de "no hay ningún elemento registrado". */
+    public void showEmptyState(boolean empty) {
+        CardLayout layout = (CardLayout) tableContainer.getLayout();
+        layout.show(tableContainer, empty ? "empty" : "table");
     }
 }

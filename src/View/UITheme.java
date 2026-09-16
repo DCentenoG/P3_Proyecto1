@@ -1,6 +1,7 @@
 package View;
 
 import javax.swing.BorderFactory;
+import javax.swing.Box;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
@@ -144,6 +145,38 @@ public final class UITheme {
     }
 
     /**
+     * Fila horizontal de componentes separados por {@code gap} píxeles, sin
+     * margen antes del primero ni después del último. A diferencia de
+     * {@link java.awt.FlowLayout} (que reserva {@code hgap} también como
+     * margen izquierdo del contenedor), esta fila deja el primer componente
+     * exactamente en el borde izquierdo, para que quede alineado en pantalla
+     * con cualquier etiqueta puesta arriba mediante {@link #leftAligned}.
+     */
+    public static JPanel row(int gap, java.awt.Component... components) {
+        JPanel panel = new JPanel();
+        panel.setOpaque(false);
+        panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.X_AXIS));
+        for (int i = 0; i < components.length; i++) {
+            if (i > 0 && gap > 0) {
+                panel.add(Box.createHorizontalStrut(gap));
+            }
+            panel.add(components[i]);
+        }
+        return panel;
+    }
+
+    /**
+     * Marca un campo de texto de fecha/semana como "solo selección": el
+     * usuario no puede escribir directamente sobre él, únicamente mediante
+     * el botón selector asociado a ese campo. La lógica de selección de
+     * fecha en sí se conecta en una etapa posterior; por ahora el campo
+     * simplemente deja de aceptar edición manual.
+     */
+    public static void lockAsPickerOnly(JTextField field) {
+        field.setEditable(false);
+    }
+
+    /**
      * Tipografía, borde y tamaño mínimo estándar de un campo de texto. El
      * ancho/alto reales se calculan como el mayor entre lo que el campo ya
      * traía y {@link #FIELD_MIN_WIDTH}/{@link #FIELD_HEIGHT}, para que
@@ -261,6 +294,19 @@ public final class UITheme {
     }
 
     /**
+     * Botón cuadrado y compacto de esquinas redondeadas con un ícono
+     * blanco centrado, sin texto (misma familia visual que
+     * {@link #createAddButton()}/{@link #createDeleteButton()} pero para
+     * espacios reducidos, p. ej. agregar/quitar filas de una minitabla).
+     */
+    public static JButton createSmallRoundedIconButton(String iconFile, Color fill, int size) {
+        JButton button = new RoundedActionButton("", iconFile, fill);
+        button.setMargin(new java.awt.Insets(0, 0, 0, 0));
+        button.setPreferredSize(new Dimension(size, size));
+        return button;
+    }
+
+    /**
      * Aplica la apariencia estándar de tabla (encabezado azul con texto
      * blanco, grilla suave, sin edición inline) usada por todas las
      * tablas de la aplicación: la de "Mis reservas" y las que arma
@@ -306,6 +352,15 @@ public final class UITheme {
      * acción azul, ya que no dispara una acción sino que abre un selector.
      */
     public static JButton createPickerButton(String glyph) {
+        return createPickerButton(glyph, 34, 30);
+    }
+
+    /**
+     * Igual que {@link #createPickerButton(String)} pero con un tamaño
+     * propio, para los selectores de fecha re-escalados a un espacio más
+     * reducido (p. ej. los filtros de rango de fecha de Estadísticas).
+     */
+    public static JButton createPickerButton(String glyph, int width, int height) {
         JButton button = new JButton(glyph);
         button.setFont(FIELD_FONT);
         button.setForeground(new Color(71, 85, 105));
@@ -315,7 +370,7 @@ public final class UITheme {
         button.setFocusPainted(false);
         button.setBorder(BorderFactory.createLineBorder(FIELD_BORDER));
         button.setMargin(new java.awt.Insets(0, 0, 0, 0));
-        button.setPreferredSize(new Dimension(34, 30));
+        button.setPreferredSize(new Dimension(width, height));
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return button;
     }
@@ -366,6 +421,7 @@ public final class UITheme {
         UIManager.put("OptionPane.warningIcon", IconLibrary.get(IconLibrary.WARNING, OPTION_ICON_SIZE));
         UIManager.put("OptionPane.questionIcon", IconLibrary.get(IconLibrary.QUESTION, OPTION_ICON_SIZE));
         UIManager.put("OptionPane.informationIcon", IconLibrary.get(IconLibrary.INFORMATION, OPTION_ICON_SIZE));
+        UIManager.put("OptionPane.errorIcon", IconLibrary.get(IconLibrary.REMOVE, OPTION_ICON_SIZE));
 
         UIManager.put("ComboBox.selectionBackground", ACCENT_BLUE);
         UIManager.put("ComboBox.selectionForeground", WHITE);
