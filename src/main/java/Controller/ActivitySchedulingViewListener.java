@@ -2,22 +2,32 @@ package Controller;
 
 import Model.Employee;
 import Model.Reservation;
+import Report.ReportException;
+import Report.ReportService;
+import Report.ScheduleReportRow;
 import View.ActivityCalendar;
 import View.ActivitySchedulingView;
 import View.DatePickerDialog;
 import View.ReservationDetailsDialog;
 
+import javax.swing.JFileChooser;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
+import java.awt.Desktop;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -29,6 +39,9 @@ import java.util.Map;
 public final class ActivitySchedulingViewListener {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    /** Mismos nombres y orden (Lunes..Viernes) que las columnas de {@link ActivityCalendar}. */
+    private static final String[] WEEKDAY_NAMES = {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes"};
 
     private final ActivitySchedulingView view;
     private final SessionContext session;
@@ -62,8 +75,7 @@ public final class ActivitySchedulingViewListener {
 
     private void wire() {
         view.getSearchButton().addActionListener(e -> onSearch());
-        view.getPrintButton().addActionListener(e -> DialogHelper.info(view, "Imprimir",
-                "La generación de reportes en PDF se implementará en una etapa posterior."));
+        view.getPrintButton().addActionListener(e -> onPrint());
         view.getWeekPickerButton().addActionListener(e -> onPickWeek());
 
         JTable table = view.getActivityCalendar().getTable();
@@ -165,6 +177,94 @@ public final class ActivitySchedulingViewListener {
                     cellIndex.put(dayIndex + "|" + hour, new ScheduleEntry(employee, reservation));
                 }
             }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Imprimir (generación de reportes PDF con JasperReports)
+    // ------------------------------------------------------------------
+
+    /**
+     * Genera un PDF con el listado de ocupación (día, hora, actividad,
+     * funcionario) de la grilla actualmente mostrada -- a partir de
+     * {@link #cellIndex}, ya calculado por la última búsqueda aplicada -- y
+     * lo guarda donde el usuario elija.
+     */
+    private void onPrint() {
+        List<ScheduleReportRow> rows = buildScheduleRows();
+        if (rows.isEmpty()) {
+            DialogHelper.warn(view, "No hay actividades agendadas para la semana seleccionada.");
+            return;
+        }
+
+        LocalDate monday = activeWeek.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate friday = monday.plusDays(4);
+
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("weekText", monday.format(DATE_FORMAT) + " al " + friday.format(DATE_FORMAT));
+
+        try {
+            byte[] pdf = ReportService.generatePdf("/reports/actividades.jrxml", rows, parameters);
+            saveAndOpenPdf(pdf);
+        } catch (ReportException ex) {
+            DialogHelper.error(view, "No fue posible generar el reporte: " + ex.getMessage());
+        }
+    }
+
+    /** Aplana {@link #cellIndex} a una fila por franja ocupada, ordenada por día (Lunes..Viernes) y luego por hora. */
+    private List<ScheduleReportRow> buildScheduleRows() {
+        List<ScheduleReportRow> rows = new ArrayList<>();
+        List<String> hours = View.ResourceCalendar.hoursOfDay();
+        for (int dayIndex = 0; dayIndex < WEEKDAY_NAMES.length; dayIndex++) {
+            for (String hour : hours) {
+                ScheduleEntry entry = cellIndex.get(dayIndex + "|" + hour);
+                if (entry != null) {
+                    rows.add(new ScheduleReportRow(WEEKDAY_NAMES[dayIndex], hour,
+                            entry.reservation().getActivity(), entry.employee().getName()));
+                }
+            }
+        }
+        return rows;
+    }
+
+    /** Deja que el usuario elija dónde guardar el PDF y, si es posible, lo abre con el visor por defecto. */
+    private void saveAndOpenPdf(byte[] pdf) {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setSelectedFile(new File("actividades.pdf"));
+        int result = chooser.showSaveDialog(view);
+        if (result != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        File target = chooser.getSelectedFile();
+        if (!target.getName().toLowerCase(Locale.ROOT).endsWith(".pdf")) {
+            target = new File(target.getParentFile(), target.getName() + ".pdf");
+        }
+
+        try (FileOutputStream out = new FileOutputStream(target)) {
+            out.write(pdf);
+        } catch (IOException ex) {
+            DialogHelper.error(view, "No fue posible guardar el archivo PDF: " + ex.getMessage());
+            return;
+        }
+
+        DialogHelper.info(view, "Actividades", "Reporte generado correctamente: " + target.getName());
+        openIfPossible(target);
+    }
+
+    /** Abre el PDF recién generado con la aplicación asociada del sistema operativo, si el entorno lo permite. */
+    private void openIfPossible(File file) {
+        if (!Desktop.isDesktopSupported()) {
+            return;
+        }
+        Desktop desktop = Desktop.getDesktop();
+        if (!desktop.isSupported(Desktop.Action.OPEN)) {
+            return;
+        }
+        try {
+            desktop.open(file);
+        } catch (IOException ignored) {
+            // No hay visor de PDF asociado, o falló al abrirlo: el archivo ya quedó guardado igual.
         }
     }
 }

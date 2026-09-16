@@ -4,20 +4,31 @@ import Model.Employee;
 import Model.Reservation;
 import Model.Resource;
 import Model.ResourceCategory;
+import Report.ReportException;
+import Report.ReportService;
+import Report.ReservationReportRow;
 import Service.ServiceException;
 import View.DatePickerDialog;
 import View.ReservationsView;
 import View.TimePickerDialog;
 
 import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
+import java.awt.Desktop;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * Maneja los eventos de {@link ReservationsView}: el botón de ayuda "?"
@@ -68,8 +79,7 @@ public final class ReservationsViewListener {
         view.getSaveButton().addActionListener(e -> onSave());
         view.getCancelButton().addActionListener(e -> onCancelReservation());
         view.getClearButton().addActionListener(e -> clearForm());
-        view.getPrintButton().addActionListener(e -> DialogHelper.info(view, "Imprimir",
-                "La generación de reportes en PDF se implementará en una etapa posterior."));
+        view.getPrintButton().addActionListener(e -> onPrint());
         view.getAddCategoryButton().addActionListener(e -> onAddCategory());
         view.getRemoveCategoryButton().addActionListener(e -> onRemoveCategory());
         view.getDateDropdownButton().addActionListener(e -> onPickDate());
@@ -308,5 +318,80 @@ public final class ReservationsViewListener {
             descriptions.add(resource.getDescription());
         }
         return String.join(", ", descriptions);
+    }
+
+    // ------------------------------------------------------------------
+    // Imprimir (generación de reportes PDF con JasperReports)
+    // ------------------------------------------------------------------
+
+    /** Genera un PDF con las reservas actualmente mostradas en la tabla (las de {@code employee}) y lo guarda donde el usuario elija. */
+    private void onPrint() {
+        List<Reservation> reservations = employee.getReservations();
+        if (reservations.isEmpty()) {
+            DialogHelper.warn(view, "No tiene reservas registradas para imprimir.");
+            return;
+        }
+
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("employeeName", employee.getName());
+
+        try {
+            byte[] pdf = ReportService.generatePdf("/reports/mis_reservas.jrxml", toReservationRows(reservations), parameters);
+            saveAndOpenPdf(pdf);
+        } catch (ReportException ex) {
+            DialogHelper.error(view, "No fue posible generar el reporte: " + ex.getMessage());
+        }
+    }
+
+    private List<ReservationReportRow> toReservationRows(List<Reservation> reservations) {
+        List<ReservationReportRow> rows = new ArrayList<>();
+        for (Reservation reservation : reservations) {
+            String timeRange = reservation.getStartTime().format(TIME_FORMAT) + " - "
+                    + reservation.getEndTime().format(TIME_FORMAT);
+            rows.add(new ReservationReportRow(reservation.getActivity(), reservation.getDate().format(DATE_FORMAT),
+                    timeRange, describeResources(reservation), "Confirmada"));
+        }
+        return rows;
+    }
+
+    /** Deja que el usuario elija dónde guardar el PDF y, si es posible, lo abre con el visor por defecto. */
+    private void saveAndOpenPdf(byte[] pdf) {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setSelectedFile(new File("mis_reservas.pdf"));
+        int result = chooser.showSaveDialog(view);
+        if (result != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        File target = chooser.getSelectedFile();
+        if (!target.getName().toLowerCase(Locale.ROOT).endsWith(".pdf")) {
+            target = new File(target.getParentFile(), target.getName() + ".pdf");
+        }
+
+        try (FileOutputStream out = new FileOutputStream(target)) {
+            out.write(pdf);
+        } catch (IOException ex) {
+            DialogHelper.error(view, "No fue posible guardar el archivo PDF: " + ex.getMessage());
+            return;
+        }
+
+        DialogHelper.info(view, "Reservas", "Reporte generado correctamente: " + target.getName());
+        openIfPossible(target);
+    }
+
+    /** Abre el PDF recién generado con la aplicación asociada del sistema operativo, si el entorno lo permite. */
+    private void openIfPossible(File file) {
+        if (!Desktop.isDesktopSupported()) {
+            return;
+        }
+        Desktop desktop = Desktop.getDesktop();
+        if (!desktop.isSupported(Desktop.Action.OPEN)) {
+            return;
+        }
+        try {
+            desktop.open(file);
+        } catch (IOException ignored) {
+            // No hay visor de PDF asociado, o falló al abrirlo: el archivo ya quedó guardado igual.
+        }
     }
 }

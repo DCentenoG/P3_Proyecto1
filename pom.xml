@@ -14,6 +14,9 @@
         <maven.compiler.target>20</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.11.0</junit.version>
+        <!-- Coincide con la versión de Jaspersoft Studio Community que se instale
+             (6.20.6, la disponible sin cuenta de TIBCO vía el mirror de SourceForge). -->
+        <jasperreports.version>6.20.6</jasperreports.version>
     </properties>
 
     <dependencies>
@@ -22,6 +25,11 @@
             <artifactId>junit-jupiter</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.jasperreports</groupId>
+            <artifactId>jasperreports</artifactId>
+            <version>${jasperreports.version}</version>
         </dependency>
     </dependencies>
 

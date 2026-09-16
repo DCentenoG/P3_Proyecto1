@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="calendarizacion" pageWidth="595" pageHeight="842" columnWidth="535"
+              leftMargin="30" rightMargin="30" topMargin="20" bottomMargin="20">
+
+    <parameter name="dateText" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="categoryText" class="java.lang.String" isForPrompting="false"/>
+
+    <field name="column" class="java.lang.String"/>
+    <field name="hour" class="java.lang.String"/>
+    <field name="activity" class="java.lang.String"/>
+    <field name="employeeName" class="java.lang.String"/>
+
+    <title>
+        <band height="65">
+            <staticText>
+                <reportElement x="0" y="0" width="535" height="30"/>
+                <textElement>
+                    <font size="18" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Calendarización de Recursos]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="0" y="30" width="400" height="15"/>
+                <textElement>
+                    <font size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Fecha: " + $P{dateText} + "   Categoría: " + $P{categoryText}]]></textFieldExpression>
+            </textField>
+            <textField pattern="dd/MM/yyyy HH:mm">
+                <reportElement x="0" y="47" width="535" height="15"/>
+                <textElement textAlignment="Right">
+                    <font size="8" isItalic="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="20">
+            <staticText>
+                <reportElement x="0" y="0" width="185" height="20"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Recurso]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="185" y="0" width="70" height="20"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Hora]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="255" y="0" width="150" height="20"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Actividad]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="405" y="0" width="130" height="20"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Funcionario]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="18">
+            <textField>
+                <reportElement x="0" y="0" width="185" height="18"/>
+                <textFieldExpression><![CDATA[$F{column}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="185" y="0" width="70" height="18"/>
+                <textFieldExpression><![CDATA[$F{hour}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="255" y="0" width="150" height="18"/>
+                <textFieldExpression><![CDATA[$F{activity}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="405" y="0" width="130" height="18"/>
+                <textFieldExpression><![CDATA[$F{employeeName}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="20">
+            <textField>
+                <reportElement x="450" y="0" width="85" height="15"/>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Página " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <noData>
+        <band height="30">
+            <staticText>
+                <reportElement x="0" y="0" width="535" height="20"/>
+                <textElement><font isItalic="true"/></textElement>
+                <text><![CDATA[No hay recursos agendados para los criterios seleccionados.]]></text>
+            </staticText>
+        </band>
+    </noData>
+</jasperReport>

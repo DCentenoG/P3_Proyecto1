@@ -3,6 +3,11 @@ package Controller;
 import Model.Employee;
 import Model.Resource;
 import Model.ResourceCategory;
+import Report.CategoryReportRow;
+import Report.EmployeeReportRow;
+import Report.ReportException;
+import Report.ReportService;
+import Report.ResourceReportRow;
 import View.CRUDView;
 import View.EntityType;
 import View.FilterBuilder;
@@ -10,10 +15,15 @@ import View.FormDialog;
 
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JFileChooser;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
+import java.awt.Desktop;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -88,6 +98,7 @@ public final class CrudViewListener {
         view.getAddButton().addActionListener(e -> onAdd());
         view.getEditButton().addActionListener(e -> onEdit());
         view.getDeleteButton().addActionListener(e -> onDelete());
+        view.getPrintButton().addActionListener(e -> onPrint());
         TableInteractionUtil.deselectOnClickOutside(view.getTable(),
                 view.getAddButton(), view.getEditButton(), view.getDeleteButton());
     }
@@ -493,6 +504,111 @@ public final class CrudViewListener {
 
         DialogHelper.info(view, entityType.getPluralTitle(), "Elemento eliminado correctamente.");
         refreshAfterChange();
+    }
+
+    // ------------------------------------------------------------------
+    // Imprimir (generación de reportes PDF con JasperReports)
+    // ------------------------------------------------------------------
+
+    /**
+     * Genera un PDF con el listado actualmente mostrado en la tabla
+     * (los mismos {@link #currentResults} de la última búsqueda aplicada,
+     * no una nueva consulta) y lo guarda donde el usuario elija.
+     */
+    private void onPrint() {
+        if (currentResults.isEmpty()) {
+            DialogHelper.warn(view, "No hay datos para imprimir. Realice una búsqueda primero.");
+            return;
+        }
+
+        try {
+            byte[] pdf = switch (entityType) {
+                case FUNCIONARIO -> ReportService.generatePdf("/reports/funcionarios.jrxml", toEmployeeRows(), null);
+                case CATEGORIA -> ReportService.generatePdf("/reports/categorias.jrxml", toCategoryRows(), null);
+                case RECURSO -> ReportService.generatePdf("/reports/recursos.jrxml", toResourceRows(), null);
+            };
+            saveAndOpenPdf(pdf);
+        } catch (ReportException ex) {
+            DialogHelper.error(view, "No fue posible generar el reporte: " + ex.getMessage());
+        }
+    }
+
+    private List<EmployeeReportRow> toEmployeeRows() {
+        List<EmployeeReportRow> rows = new ArrayList<>();
+        for (Object entity : currentResults) {
+            Employee employee = (Employee) entity;
+            rows.add(new EmployeeReportRow(employee.getId(), employee.getName(), employee.getPhoneNumber()));
+        }
+        return rows;
+    }
+
+    private List<CategoryReportRow> toCategoryRows() {
+        List<CategoryReportRow> rows = new ArrayList<>();
+        for (Object entity : currentResults) {
+            ResourceCategory category = (ResourceCategory) entity;
+            rows.add(new CategoryReportRow(category.getId(), category.getDescription()));
+        }
+        return rows;
+    }
+
+    private List<ResourceReportRow> toResourceRows() {
+        List<ResourceReportRow> rows = new ArrayList<>();
+        for (Object entity : currentResults) {
+            Resource resource = (Resource) entity;
+            rows.add(new ResourceReportRow(resource.getResourceCategoryReference().getDescription(),
+                    resource.getId(), resource.getDescription()));
+        }
+        return rows;
+    }
+
+    /** Deja que el usuario elija dónde guardar el PDF y, si es posible, lo abre con el visor por defecto. */
+    private void saveAndOpenPdf(byte[] pdf) {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setSelectedFile(new File(defaultReportFileName()));
+        int result = chooser.showSaveDialog(view);
+        if (result != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        File target = chooser.getSelectedFile();
+        if (!target.getName().toLowerCase(Locale.ROOT).endsWith(".pdf")) {
+            target = new File(target.getParentFile(), target.getName() + ".pdf");
+        }
+
+        try (FileOutputStream out = new FileOutputStream(target)) {
+            out.write(pdf);
+        } catch (IOException ex) {
+            DialogHelper.error(view, "No fue posible guardar el archivo PDF: " + ex.getMessage());
+            return;
+        }
+
+        DialogHelper.info(view, entityType.getPluralTitle(), "Reporte generado correctamente: " + target.getName());
+        openIfPossible(target);
+    }
+
+    private String defaultReportFileName() {
+        String base = switch (entityType) {
+            case FUNCIONARIO -> "funcionarios";
+            case CATEGORIA -> "categorias";
+            case RECURSO -> "recursos";
+        };
+        return base + ".pdf";
+    }
+
+    /** Abre el PDF recién generado con la aplicación asociada del sistema operativo, si el entorno lo permite. */
+    private void openIfPossible(File file) {
+        if (!Desktop.isDesktopSupported()) {
+            return;
+        }
+        Desktop desktop = Desktop.getDesktop();
+        if (!desktop.isSupported(Desktop.Action.OPEN)) {
+            return;
+        }
+        try {
+            desktop.open(file);
+        } catch (IOException ignored) {
+            // No hay visor de PDF asociado, o falló al abrirlo: el archivo ya quedó guardado igual.
+        }
     }
 
     // ------------------------------------------------------------------
