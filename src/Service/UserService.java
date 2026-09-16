@@ -3,6 +3,7 @@ package Service;
 import Model.Admin;
 import Model.Employee;
 import Model.User;
+import Model.exceptions.EmployeeNotFoundException;
 
 import java.util.List;
 
@@ -60,20 +61,38 @@ public class UserService {
         return service.getUsers().getListOfEmployees();
     }
 
-    public Employee findEmployeeById(int id) {
-        return service.getUsers().getEmployeeById(id);
+    public Employee findEmployeeById(int id) throws ServiceException {
+        try {
+            return service.getUsers().getEmployeeById(id);
+        } catch (EmployeeNotFoundException e) {
+            throw new ServiceException(
+                    "No existe ningun funcionario registrado con el id '" + id + "'.", e);
+        }
     }
 
-    public Employee findEmployeeByName(String name) {
-        return service.getUsers().getEmployeeByName(name);
+    public Employee findEmployeeByName(String name) throws ServiceException {
+        try {
+            return service.getUsers().getEmployeeByName(name);
+        } catch (EmployeeNotFoundException e) {
+            throw new ServiceException(
+                    "No existe ningun funcionario registrado con el nombre '" + name + "'.", e);
+        }
     }
 
-    public Employee addEmployee(String name, int phoneNumber) throws ServiceException {
+    public Employee addEmployee(String name, String phoneText) throws ServiceException {
+        int phoneNumber = parsePhoneNumber(phoneText);
         if (name == null || name.isBlank()) {
             throw new ServiceException("Debe indicar el nombre del funcionario.");
         }
-        if (findEmployeeByName(name.trim()) != null) {
+        try {
+            findEmployeeByName(name.trim());
             throw new ServiceException("Ya existe un funcionario registrado con ese nombre.");
+        } catch (ServiceException e) {
+            if (e.getCause() instanceof EmployeeNotFoundException) {
+                // El nombre esta disponible.
+            } else {
+                throw e;
+            }
         }
 
         //addEmployee genera el id y usa el mismo id como clave inicial (regla del enunciado)
@@ -82,18 +101,26 @@ public class UserService {
         return findEmployeeByName(name.trim());
     }
 
-    public void updateEmployee(int id, String newName, int newPhoneNumber) throws ServiceException {
+    public Employee addEmployee(String name, int phoneNumber) throws ServiceException {
+        return addEmployee(name, String.valueOf(phoneNumber));
+    }
+
+    public void updateEmployee(int id, String newName, String phoneText) throws ServiceException {
+        int newPhoneNumber = parsePhoneNumber(phoneText);
         Employee employee = findEmployeeById(id);
-        if (employee == null) {
-            throw new ServiceException("No existe ningun funcionario registrado con el id '" + id + "'.");
-        }
         if (newName == null || newName.isBlank()) {
             throw new ServiceException("Debe indicar el nombre del funcionario.");
         }
 
-        Employee other = findEmployeeByName(newName.trim());
-        if (other != null && other != employee) {
-            throw new ServiceException("Ya existe otro funcionario registrado con ese nombre.");
+        try {
+            Employee other = findEmployeeByName(newName.trim());
+            if (other != employee) {
+                throw new ServiceException("Ya existe otro funcionario registrado con ese nombre.");
+            }
+        } catch (ServiceException e) {
+            if (!(e.getCause() instanceof EmployeeNotFoundException)) {
+                throw e;
+            }
         }
 
         employee.setName(newName.trim());
@@ -101,9 +128,19 @@ public class UserService {
         service.save();
     }
 
+    public void updateEmployee(int id, String newName, int newPhoneNumber) throws ServiceException {
+        updateEmployee(id, newName, String.valueOf(newPhoneNumber));
+    }
+
     public void removeEmployee(String name, int phoneNumber) throws ServiceException {
-        Employee employee = service.getUsers().getEmployeeByName(name);
-        if (employee == null || employee.getPhoneNumber() != phoneNumber) {
+        Employee employee;
+        try {
+            employee = service.getUsers().getEmployeeByName(name);
+        } catch (EmployeeNotFoundException e) {
+            throw new ServiceException(
+                    "No existe ningun funcionario registrado con ese nombre y telefono.", e);
+        }
+        if (employee.getPhoneNumber() != phoneNumber) {
             throw new ServiceException("No existe ningun funcionario registrado con ese nombre y telefono.");
         }
         if (!employee.getReservations().isEmpty()) {
@@ -111,8 +148,27 @@ public class UserService {
                     "No se puede eliminar al funcionario '" + name + "' porque tiene reservas registradas.");
         }
 
-        service.getUsers().removeEmployeeByNameAndPhoneNumber(name, phoneNumber);
+        try {
+            service.getUsers().removeEmployeeByNameAndPhoneNumber(name, phoneNumber);
+        } catch (EmployeeNotFoundException e) {
+            throw new ServiceException("No fue posible eliminar el funcionario indicado.", e);
+        }
         service.save();
+    }
+
+    private int parsePhoneNumber(String phoneText) throws ServiceException {
+        if (phoneText == null || phoneText.isBlank()) {
+            throw new ServiceException("Debe indicar un numero de telefono.");
+        }
+        try {
+            int phone = Integer.parseInt(phoneText.trim());
+            if (phone < 0) {
+                throw new NumberFormatException();
+            }
+            return phone;
+        } catch (NumberFormatException e) {
+            throw new ServiceException("El telefono debe ser un numero entero valido.", e);
+        }
     }
 
     //--- Administradores (soporte para poder crear el primer usuario del sistema) ---
