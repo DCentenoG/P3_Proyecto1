@@ -39,6 +39,15 @@ public final class ActivitySchedulingViewListener {
     private record ScheduleEntry(Employee employee, Reservation reservation) {
     }
 
+    /**
+     * Última semana de referencia realmente buscada (con "Buscar", o la
+     * carga inicial): contra ESTA, y no contra lo que haya en ese momento
+     * seleccionado en el campo de semana, se recarga la grilla ante un
+     * refresco automático por una reserva creada/cancelada en otra
+     * pantalla (ver {@link #refresh()}).
+     */
+    private LocalDate activeWeek = LocalDate.now();
+
     public ActivitySchedulingViewListener(ActivitySchedulingView view, SessionContext session) {
         this.view = view;
         this.session = session;
@@ -48,7 +57,7 @@ public final class ActivitySchedulingViewListener {
         // la calendarización con las reservas existentes, en vez de dejar la
         // grilla vacía hasta la primera búsqueda manual.
         view.getWeekField().setText(LocalDate.now().format(DATE_FORMAT));
-        onSearch();
+        runSearch();
     }
 
     private void wire() {
@@ -117,10 +126,29 @@ public final class ActivitySchedulingViewListener {
             }
         }
 
-        ActivityCalendar calendar = view.getActivityCalendar();
-        calendar.setWeek(referenceDate);
+        // Este es el ÚNICO lugar donde la semana elegida en el campo pasa a
+        // ser la búsqueda activa.
+        activeWeek = referenceDate;
+        runSearch();
+    }
 
-        LocalDate monday = referenceDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+    /**
+     * Vuelve a ejecutar la última búsqueda de semana aplicada
+     * ({@link #activeWeek}) contra los datos actuales, para reflejar una
+     * reserva creada/cancelada en otra pantalla. A propósito no relee el
+     * campo de semana en pantalla: si el usuario tiene una semana nueva
+     * elegida ahí pero todavía no presionó "Buscar", ese cambio no debe
+     * colarse en la grilla.
+     */
+    public void refresh() {
+        runSearch();
+    }
+
+    private void runSearch() {
+        ActivityCalendar calendar = view.getActivityCalendar();
+        calendar.setWeek(activeWeek);
+
+        LocalDate monday = activeWeek.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate friday = monday.plusDays(4);
 
         cellIndex.clear();

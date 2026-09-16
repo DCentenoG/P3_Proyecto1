@@ -43,6 +43,22 @@ public final class CalendarViewListener {
     private record ScheduleEntry(Employee employee, Reservation reservation) {
     }
 
+    /**
+     * Última búsqueda realmente aplicada (con "Buscar", o la carga
+     * inicial): es contra ESTO, y no contra lo que haya en ese momento
+     * seleccionado en el campo de fecha o el combo de categoría, que se
+     * recarga la grilla cuando hay un refresco automático por un cambio de
+     * datos hecho en otra pantalla (una reserva creada/cancelada, o un
+     * recurso/categoría editado — ver {@link #refresh()}). Así, cambiar el
+     * filtro nunca actualiza la grilla por sí solo — solo lo hace
+     * "Buscar" — y eso queda totalmente separado del refresco en tiempo
+     * real.
+     */
+    private LocalDate activeDate = LocalDate.now();
+
+    /** {@code null} = "(Todas)"; si no, la descripción de la categoría activa. */
+    private String activeCategory;
+
     public CalendarViewListener(CalendarView view, SessionContext session) {
         this.view = view;
         this.session = session;
@@ -55,7 +71,7 @@ public final class CalendarViewListener {
         // calendarización con todos los recursos existentes, en vez de dejar
         // la grilla sin columnas hasta la primera búsqueda manual.
         view.getDateField().setText(LocalDate.now().format(DATE_FORMAT));
-        onSearch();
+        runSearch();
     }
 
     private void wire() {
@@ -142,9 +158,30 @@ public final class CalendarViewListener {
             }
         }
 
+        // Este es el ÚNICO lugar donde lo que hay seleccionado en el campo
+        // de fecha y el combo de categoría pasa a ser la búsqueda activa.
+        activeDate = date;
+        activeCategory = categoryApplied ? selectedCategory.toString() : null;
+        runSearch();
+    }
+
+    /**
+     * Vuelve a ejecutar la última búsqueda aplicada ({@link #activeDate}/
+     * {@link #activeCategory}) contra los datos actuales, para reflejar una
+     * reserva creada/cancelada, o un recurso/categoría editado, hecho en
+     * otra pantalla. A propósito no relee los campos de fecha/categoría en
+     * pantalla: si el usuario tiene una fecha u categoría nueva elegida ahí
+     * pero todavía no presionó "Buscar", ese cambio no debe colarse en la
+     * grilla.
+     */
+    public void refresh() {
+        runSearch();
+    }
+
+    private void runSearch() {
         List<Resource> resources = new ArrayList<>();
         for (ResourceCategory category : session.getCategories().getCategories()) {
-            if (categoryApplied && !category.getDescription().equals(selectedCategory.toString())) {
+            if (activeCategory != null && !category.getDescription().equals(activeCategory)) {
                 continue;
             }
             resources.addAll(category.getResources());
@@ -157,7 +194,7 @@ public final class CalendarViewListener {
 
         ResourceCalendar calendar = view.getResourceCalendar();
         calendar.setResources(columnLabels);
-        applySchedule(calendar, resources, date);
+        applySchedule(calendar, resources, activeDate);
     }
 
     private void applySchedule(ResourceCalendar calendar, List<Resource> resources, LocalDate date) {

@@ -4,6 +4,7 @@ import Model.Employee;
 import Model.Reservation;
 import Model.Resource;
 import Model.ResourceCategory;
+import Service.ServiceException;
 import View.DatePickerDialog;
 import View.ReservationsView;
 import View.TimePickerDialog;
@@ -42,6 +43,15 @@ public final class ReservationsViewListener {
     private final SessionContext session;
     private final Employee employee;
 
+    /**
+     * Se invoca tras crear o cancelar una reserva, para que Calendarización
+     * y Actividades (armadas una sola vez al iniciar sesión y mantenidas
+     * vivas en sus pestañas) refresquen su propia grilla con los datos ya
+     * actualizados, en vez de mostrar la foto desactualizada de su última
+     * búsqueda hasta que el usuario la repita manualmente.
+     */
+    private Runnable afterReservationChange = () -> { };
+
     public ReservationsViewListener(ReservationsView view, SessionContext session) {
         this.view = view;
         this.session = session;
@@ -68,13 +78,21 @@ public final class ReservationsViewListener {
         TableInteractionUtil.deselectOnClickOutside(view.getReservationsTable(), view.getCancelButton());
     }
 
+    public void setAfterReservationChange(Runnable callback) {
+        this.afterReservationChange = (callback != null) ? callback : () -> { };
+    }
+
     // ------------------------------------------------------------------
     // Selectores de fecha/hora
     // ------------------------------------------------------------------
 
     private void onPickDate() {
         LocalDate initial = parseDateOrNull(view.getDateField().getText());
-        LocalDate picked = DatePickerDialog.show(SwingUtilities.getWindowAncestor(view), initial, null, null);
+        // Una reserva no se puede hacer en una fecha que ya pasó (regla que
+        // ahora también aplica Service.ReservationService.createReservation):
+        // se previene directamente en el selector, en vez de dejar elegirla y
+        // recién avisar después de intentar guardar.
+        LocalDate picked = DatePickerDialog.show(SwingUtilities.getWindowAncestor(view), initial, LocalDate.now(), null);
         if (picked != null) {
             view.getDateField().setText(picked.format(DATE_FORMAT));
         }
@@ -195,38 +213,23 @@ public final class ReservationsViewListener {
             return;
         }
 
-        Reservation reservation = new Reservation(activity, date, startTime, endTime);
-        List<String> categoriesWithoutAvailability = new ArrayList<>();
-        for (String categoryName : selectedCategories) {
-            ResourceCategory category = session.getCategories().getCategorybyDescription(categoryName);
-            if (category == null || !assignFirstAvailableResource(reservation, category)) {
-                categoriesWithoutAvailability.add(categoryName);
-            }
-        }
-        if (!categoriesWithoutAvailability.isEmpty()) {
-            DialogHelper.error(view, "No hay recursos disponibles para el horario seleccionado en: "
-                    + String.join(", ", categoriesWithoutAvailability) + ".");
-            return;
-        }
-
-        employee.getReservations().add(reservation);
-        if (!session.save(view)) {
-            employee.getReservations().remove(reservation);
+        // Armar la reserva (asignar, todo-o-nada, el primer recurso libre de
+        // cada categoría requerida, y guardar el XML) ya no se hace aquí:
+        // vive en Service.ReservationService (ver Model.Employee#tryBook),
+        // así el Controller solo junta los datos del formulario y traduce el
+        // resultado a diálogos, como corresponde en la arquitectura MVC.
+        try {
+            session.getReservationService().createReservation(employee.getId(), activity, date, startTime, endTime,
+                    selectedCategories);
+        } catch (ServiceException ex) {
+            DialogHelper.error(view, ex.getMessage());
             return;
         }
 
         DialogHelper.info(view, "Reservas", "La reserva se guardó correctamente.");
         clearForm();
         renderReservations();
-    }
-
-    private boolean assignFirstAvailableResource(Reservation reservation, ResourceCategory category) {
-        for (Resource resource : category.getResources()) {
-            if (reservation.addResource(resource, session.getUsers())) {
-                return true;
-            }
-        }
-        return false;
+        afterReservationChange.run();
     }
 
     // ------------------------------------------------------------------
@@ -248,6 +251,7 @@ public final class ReservationsViewListener {
             return;
         }
         renderReservations();
+        afterReservationChange.run();
     }
 
     // ------------------------------------------------------------------
