@@ -17,6 +17,9 @@
         <!-- Coincide con la versión de Jaspersoft Studio Community que se instale
              (6.20.6, la disponible sin cuenta de TIBCO vía el mirror de SourceForge). -->
         <jasperreports.version>6.20.6</jasperreports.version>
+        <!-- Usada por Service.AIReservationExtractionService para construir el
+             cuerpo JSON de las llamadas a la API de Gemini (IA de reservas). -->
+        <json.version>20251224</json.version>
     </properties>
 
     <dependencies>
@@ -30,6 +33,11 @@
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports</artifactId>
             <version>${jasperreports.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>${json.version}</version>
         </dependency>
     </dependencies>
 
