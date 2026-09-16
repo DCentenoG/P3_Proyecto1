@@ -3,6 +3,7 @@ package Controller;
 import Model.CategoryContainer;
 import Model.User;
 import Model.UserContainer;
+import Service.ReservationService;
 import Service.Service;
 import Service.ServiceException;
 
@@ -63,6 +64,17 @@ public final class SessionContext {
 
     public CategoryContainer getCategories() {
         return service.getCategories();
+    }
+
+    /**
+     * Servicio de dominio de reservas (ver {@link ReservationService}):
+     * comparte la misma instancia de {@link Service} que ya usan
+     * {@link #getUsers()}/{@link #getCategories()}, para que una reserva
+     * creada a través de él quede reflejada de inmediato en los mismos
+     * contenedores en memoria que usa el resto de la aplicación.
+     */
+    public ReservationService getReservationService() {
+        return new ReservationService(service);
     }
 
     public User getCurrentUser() {

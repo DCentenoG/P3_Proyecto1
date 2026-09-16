@@ -15,8 +15,10 @@ import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Maneja los eventos de {@link CRUDView} (compartido por Funcionarios,
@@ -56,6 +58,20 @@ public final class CrudViewListener {
      */
     private Runnable afterAnyChange = () -> { };
 
+    /**
+     * Última búsqueda realmente aplicada (con "Buscar", o el listado
+     * completo con el que arranca la pantalla): es contra ESTO, y no
+     * contra lo que haya en ese momento tecleado/seleccionado en los
+     * campos de filtro (que puede ser un criterio a medio escribir que el
+     * usuario todavía no mandó a buscar), que se recarga la tabla cuando
+     * hay un refresco automático por cambios de datos (ver
+     * {@link #refresh()} y {@link #refreshAfterChange()}). Así, cambiar
+     * los filtros nunca actualiza la tabla por sí solo -- solo lo hace
+     * "Buscar" -- y eso queda totalmente separado del refresco en tiempo
+     * real de altas/ediciones/bajas.
+     */
+    private FilterSnapshot activeFilters = FilterSnapshot.empty();
+
     public CrudViewListener(CRUDView view, SessionContext session) {
         this.view = view;
         this.session = session;
@@ -64,7 +80,7 @@ public final class CrudViewListener {
         // Se muestra el listado completo desde el inicio (sin exigir
         // criterios de búsqueda), en vez de dejar la tabla vacía hasta la
         // primera búsqueda manual del usuario.
-        runSearch(view.getFilterBuilder());
+        runSearch(activeFilters);
     }
 
     private void wire() {
@@ -84,9 +100,15 @@ public final class CrudViewListener {
         this.afterAnyChange = (callback != null) ? callback : () -> { };
     }
 
-    /** Vuelve a ejecutar la última búsqueda (mismos criterios ya puestos en los filtros) contra los datos actuales. */
+    /**
+     * Vuelve a ejecutar la última búsqueda aplicada ({@link #activeFilters})
+     * contra los datos actuales, para reflejar un alta/edición/baja hecha
+     * en OTRO CRUD. A propósito no relee los campos de filtro en pantalla:
+     * si el usuario tiene un criterio nuevo a medio escribir ahí, ese
+     * criterio no debe colarse en la tabla hasta que presione "Buscar".
+     */
     public void refresh() {
-        runSearch(view.getFilterBuilder());
+        runSearch(activeFilters);
     }
 
     /** Reconstruye el combo de categorías del filtro de Recursos con las categorías actuales. */
@@ -118,11 +140,33 @@ public final class CrudViewListener {
     private void onSearch() {
         // No exigir ningún criterio: dejar todos los campos vacíos (o la
         // categoría de Recursos en "(Todas)") es una búsqueda válida que
-        // simplemente reestablece la tabla al listado completo.
-        runSearch(view.getFilterBuilder());
+        // simplemente reestablece la tabla al listado completo. Este es el
+        // ÚNICO lugar donde lo que hay tecleado/seleccionado en los campos
+        // de filtro pasa a ser la búsqueda activa: cambiar un filtro sin
+        // presionar "Buscar" no debe tocar la tabla.
+        activeFilters = captureFilters();
+        runSearch(activeFilters);
     }
 
-    private void runSearch(FilterBuilder filters) {
+    /** Congela en un snapshot lo que hay en ese momento en los campos de filtro de este CRUD. */
+    private FilterSnapshot captureFilters() {
+        FilterBuilder filters = view.getFilterBuilder();
+        Map<String, Object> values = new LinkedHashMap<>();
+        switch (entityType) {
+            case FUNCIONARIO -> {
+                values.put("ID", filters.getTextValue("ID"));
+                values.put("Nombre", filters.getTextValue("Nombre"));
+            }
+            case CATEGORIA -> values.put("Descripción", filters.getTextValue("Descripción"));
+            case RECURSO -> {
+                values.put("Categoría", filters.getSelectedValue("Categoría"));
+                values.put("Descripción", filters.getTextValue("Descripción"));
+            }
+        }
+        return new FilterSnapshot(values);
+    }
+
+    private void runSearch(FilterSnapshot filters) {
         currentResults.clear();
         switch (entityType) {
             case FUNCIONARIO -> searchEmployees(filters);
@@ -132,7 +176,7 @@ public final class CrudViewListener {
         renderResults();
     }
 
-    private void searchEmployees(FilterBuilder filters) {
+    private void searchEmployees(FilterSnapshot filters) {
         String idFilter = filters.getTextValue("ID");
         String nameFilter = filters.getTextValue("Nombre");
         for (Employee employee : session.getUsers().getListOfEmployees()) {
@@ -145,7 +189,7 @@ public final class CrudViewListener {
         }
     }
 
-    private void searchCategories(FilterBuilder filters) {
+    private void searchCategories(FilterSnapshot filters) {
         String descriptionFilter = filters.getTextValue("Descripción");
         for (ResourceCategory category : session.getCategories().getCategories()) {
             if (!nonBlank(descriptionFilter) || containsIgnoreCase(category.getDescription(), descriptionFilter)) {
@@ -154,7 +198,7 @@ public final class CrudViewListener {
         }
     }
 
-    private void searchResources(FilterBuilder filters) {
+    private void searchResources(FilterSnapshot filters) {
         Object selectedCategory = filters.getSelectedValue("Categoría");
         String categoryFilter = (selectedCategory != null && !FilterBuilder.NO_FILTER.equals(selectedCategory))
                 ? selectedCategory.toString() : null;
@@ -456,7 +500,9 @@ public final class CrudViewListener {
     // ------------------------------------------------------------------
 
     private void refreshAfterChange() {
-        runSearch(view.getFilterBuilder());
+        // Igual que refresh(): se replica la última búsqueda aplicada, no
+        // lo que haya en ese momento en los campos de filtro.
+        runSearch(activeFilters);
         afterAnyChange.run();
     }
 
@@ -474,6 +520,37 @@ public final class CrudViewListener {
             return Integer.parseInt(text);
         } catch (NumberFormatException ex) {
             return 0;
+        }
+    }
+
+    /**
+     * Copia inmutable, congelada en el momento de una búsqueda real, de
+     * los valores de los campos de filtro de este CRUD. Expone la misma
+     * lectura ({@code getTextValue}/{@code getSelectedValue}) que
+     * {@link FilterBuilder}, pero sin quedar atada a los
+     * {@link JComponent} en pantalla: así un refresco automático (por un
+     * cambio de datos en este u otro CRUD) puede repetir la última
+     * búsqueda aplicada sin arrastrar de paso un criterio que el usuario
+     * todavía esté escribiendo/seleccionando y no haya buscado.
+     */
+    private static final class FilterSnapshot {
+        private final Map<String, Object> values;
+
+        private FilterSnapshot(Map<String, Object> values) {
+            this.values = values;
+        }
+
+        static FilterSnapshot empty() {
+            return new FilterSnapshot(Map.of());
+        }
+
+        String getTextValue(String label) {
+            Object value = values.get(label);
+            return (value instanceof String text) ? text : null;
+        }
+
+        Object getSelectedValue(String label) {
+            return values.get(label);
         }
     }
 }
