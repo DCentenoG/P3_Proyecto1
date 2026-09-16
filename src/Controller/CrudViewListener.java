@@ -7,6 +7,7 @@ import View.CRUDView;
 import View.EntityType;
 import View.FilterBuilder;
 import View.FormDialog;
+import Service.ServiceException;
 
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -369,20 +370,20 @@ public final class CrudViewListener {
 
     private void saveEmployee(FormDialog dialog, Employee existing) {
         String name = ((JTextField) dialog.getField("Nombre")).getText().trim();
-        int phone = parseIntSafe(((JTextField) dialog.getField("Teléfono")).getText().trim());
+        String phone = ((JTextField) dialog.getField("Teléfono")).getText().trim();
 
         if (!DialogHelper.confirm(dialog, "¿Desea guardar los cambios de este funcionario?")) {
             return;
         }
 
-        if (existing != null) {
-            existing.setName(name);
-            existing.setPhoneNumber(phone);
-        } else {
-            session.getUsers().addEmployee(name, phone);
-        }
-
-        if (!session.save(dialog)) {
+        try {
+            if (existing != null) {
+                session.getUserService().updateEmployee(existing.getId(), name, phone);
+            } else {
+                session.getUserService().addEmployee(name, phone);
+            }
+        } catch (ServiceException ex) {
+            DialogHelper.error(dialog, ex.getMessage());
             return;
         }
 
@@ -398,13 +399,14 @@ public final class CrudViewListener {
             return;
         }
 
-        if (existing != null) {
-            existing.setDescription(description);
-        } else {
-            session.getCategories().addCategory(description);
-        }
-
-        if (!session.save(dialog)) {
+        try {
+            if (existing != null) {
+                session.getResourceService().updateCategory(existing.getId(), existing.getDescription(), description);
+            } else {
+                session.getResourceService().addCategory(description);
+            }
+        } catch (ServiceException ex) {
+            DialogHelper.error(dialog, ex.getMessage());
             return;
         }
 
@@ -416,7 +418,7 @@ public final class CrudViewListener {
 
     private void saveResource(FormDialog dialog, Resource existing) {
         JComboBox<?> categoryCombo = (JComboBox<?>) dialog.getField("Categoría");
-        int id = parseIntSafe(((JTextField) dialog.getField("ID")).getText().trim());
+        String id = ((JTextField) dialog.getField("ID")).getText().trim();
         String description = ((JTextField) dialog.getField("Descripción")).getText().trim();
         Object selectedCategory = categoryCombo.getSelectedItem();
 
@@ -424,29 +426,19 @@ public final class CrudViewListener {
             return;
         }
 
-        ResourceCategory targetCategory = (selectedCategory != null)
-                ? session.getCategories().getCategorybyDescription(selectedCategory.toString())
-                : null;
-        if (targetCategory == null) {
-            // Aún no hay categorías creadas; sin ellas no hay dónde guardar el recurso.
-            dialog.dispose();
-            return;
-        }
-
-        if (existing != null) {
-            ResourceCategory originalCategory = existing.getResourceCategoryReference();
-            if (originalCategory != targetCategory) {
-                originalCategory.deleteResourceByIdAndDescription(existing.getId(), existing.getDescription());
-                targetCategory.addResource(id, description);
-            } else {
-                existing.setId(id);
-                existing.setDescription(description);
+        try {
+            if (selectedCategory == null) {
+                throw new ServiceException("Debe seleccionar una categoria para el recurso.");
             }
-        } else {
-            targetCategory.addResource(id, description);
-        }
-
-        if (!session.save(dialog)) {
+            ResourceCategory targetCategory =
+                    session.getResourceService().findCategoryByDescription(selectedCategory.toString());
+            if (existing != null) {
+                session.getResourceService().updateResource(existing, targetCategory, id, description);
+            } else {
+                session.getResourceService().addResource(targetCategory.getDescription(), id, description);
+            }
+        } catch (ServiceException ex) {
+            DialogHelper.error(dialog, ex.getMessage());
             return;
         }
 
@@ -470,24 +462,26 @@ public final class CrudViewListener {
         }
 
         Object entity = currentResults.get(row);
-        switch (entityType) {
-            case FUNCIONARIO -> {
-                Employee employee = (Employee) entity;
-                session.getUsers().removeEmployeeByNameAndPhoneNumber(employee.getName(), employee.getPhoneNumber());
+        try {
+            switch (entityType) {
+                case FUNCIONARIO -> {
+                    Employee employee = (Employee) entity;
+                    session.getUserService().removeEmployee(employee.getName(), employee.getPhoneNumber());
+                }
+                case CATEGORIA -> {
+                    ResourceCategory category = (ResourceCategory) entity;
+                    session.getResourceService().removeCategory(category.getId(), category.getDescription());
+                    afterCategoryChange.run();
+                }
+                case RECURSO -> {
+                    Resource resource = (Resource) entity;
+                    ResourceCategory category = resource.getResourceCategoryReference();
+                    session.getResourceService().removeResource(
+                            category.getDescription(), resource.getId(), resource.getDescription());
+                }
             }
-            case CATEGORIA -> {
-                ResourceCategory category = (ResourceCategory) entity;
-                session.getCategories().deleteCategoryByIdAndDescription(category.getId(), category.getDescription());
-                afterCategoryChange.run();
-            }
-            case RECURSO -> {
-                Resource resource = (Resource) entity;
-                resource.getResourceCategoryReference()
-                        .deleteResourceByIdAndDescription(resource.getId(), resource.getDescription());
-            }
-        }
-
-        if (!session.save(view)) {
+        } catch (ServiceException ex) {
+            DialogHelper.error(view, ex.getMessage());
             return;
         }
 
@@ -512,15 +506,6 @@ public final class CrudViewListener {
 
     private static boolean containsIgnoreCase(String text, String needle) {
         return text.toLowerCase(Locale.ROOT).contains(needle.trim().toLowerCase(Locale.ROOT));
-    }
-
-    /** Convierte a entero de forma tolerante; sin validación por ahora, un valor no numérico se guarda como 0. */
-    private static int parseIntSafe(String text) {
-        try {
-            return Integer.parseInt(text);
-        } catch (NumberFormatException ex) {
-            return 0;
-        }
     }
 
     /**
