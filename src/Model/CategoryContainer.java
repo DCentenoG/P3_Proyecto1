@@ -1,5 +1,7 @@
 package Model;
 
+import Model.exceptions.CategoryNotFoundException;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -44,22 +46,25 @@ public class CategoryContainer {
         nextId++;
     }
 
-    public ResourceCategory getCategorybyDescription(String description) {
+    public ResourceCategory getCategorybyDescription(String description) throws CategoryNotFoundException {
         for (ResourceCategory category : categories) {
             if (category.getDescription().equals(description)) {
                 return category;
             }
         }
-        return null; //PENDIENTE IMPLEMENTAR EXCEPCION DE CATEGORIA NO ENCONTRADA
+        throw new CategoryNotFoundException(
+                "No existe ninguna categoria con la descripcion '" + description + "'.");
     }
 
-    public void deleteCategoryByIdAndDescription(String id, String description) {
+    public void deleteCategoryByIdAndDescription(String id, String description) throws CategoryNotFoundException {
         for (int i = 0; i < categories.size(); i++) {
             if (categories.get(i).getId().equals(id) && categories.get(i).getDescription().equals(description)) {
                 categories.get(i).deleteAllResources();
                 categories.remove(categories.get(i));
-                break;
+                return;
             }
         }
+        throw new CategoryNotFoundException(
+                "No existe ninguna categoria con el id '" + id + "' y la descripcion indicada.");
     }
 }
