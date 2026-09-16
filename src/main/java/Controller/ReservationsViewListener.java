@@ -236,6 +236,7 @@ public final class ReservationsViewListener {
     // Cancelar reserva
     // ------------------------------------------------------------------
 
+    // DESPUÉS
     private void onCancelReservation() {
         int row = view.getReservationsTable().getSelectedRow();
         if (row < 0 || row >= employee.getReservations().size()) {
@@ -245,11 +246,15 @@ public final class ReservationsViewListener {
         if (!DialogHelper.confirm(view, "¿Desea cancelar la reserva seleccionada?")) {
             return;
         }
-        Reservation removed = employee.getReservations().remove(row);
-        if (!session.save(view)) {
-            employee.getReservations().add(row, removed);
+
+        Reservation toCancel = employee.getReservations().get(row);
+        try {
+            session.getReservationService().cancelReservation(employee.getId(), toCancel);
+        } catch (ServiceException ex) {
+            DialogHelper.error(view, ex.getMessage());
             return;
         }
+
         renderReservations();
         afterReservationChange.run();
     }

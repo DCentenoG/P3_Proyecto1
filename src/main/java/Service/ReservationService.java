@@ -40,15 +40,12 @@ public class ReservationService {
     excepcion indicando todas las categorias sin disponibilidad.
     */
     public Reservation createReservation(int employeeId, String activity, LocalDate date,
-                                          LocalTime startTime, LocalTime endTime,
-                                          List<String> requiredCategoryDescriptions) throws ServiceException {
+                                         LocalTime startTime, LocalTime endTime,
+                                         List<String> requiredCategoryDescriptions) throws ServiceException {
 
         Employee employee = requireEmployee(employeeId);
         validateReservationData(activity, date, startTime, endTime, requiredCategoryDescriptions);
 
-        Reservation reservation = new Reservation(activity.trim(), date, startTime, endTime);
-
-        // DESPUÉS
         List<ResourceCategory> categories = new ArrayList<>();
         List<String> unresolvedCategories = new ArrayList<>();
         for (String description : requiredCategoryDescriptions) {
@@ -68,19 +65,14 @@ public class ReservationService {
             throw new ServiceException("No hay disponibilidad para la(s) siguiente(s) categoria(s) en ese horario: "
                     + String.join(", ", allFailed));
         }
+
+        // Si llegamos aquí, allFailed está vacío: tryBook tuvo éxito y ya agregó
+        // la reserva a employee.getReservations() internamente. La recuperamos
+        // (es la última, porque tryBook la agrega al final de la lista) en vez
+        // de retornar un objeto separado que nunca se agregó a ningún lado.
+        Reservation reservation = employee.getReservations().get(employee.getReservations().size() - 1);
         service.save();
         return reservation;
-    }
-
-    private boolean assignFirstAvailableResource(Reservation reservation, ResourceCategory category) {
-        for (Resource resource : category.getResources()) {
-            //addResource ya verifica, contra TODAS las reservas de TODOS los funcionarios,
-            //que el recurso no este ocupado en un horario que se traslape con este.
-            if (reservation.addResource(resource, service.getUsers())) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public void cancelReservation(int employeeId, Reservation reservation) throws ServiceException {
