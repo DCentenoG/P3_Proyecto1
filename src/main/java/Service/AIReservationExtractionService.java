@@ -23,34 +23,36 @@ import java.util.List;
 /*
 Capa que invoca al modelo de lenguaje (LLM) pedido por el enunciado ("el
 sistema, invocando un modelo de lenguaje (LLM), extraera de la frase los
-datos y llenara el formulario"). Usa la API de Grok (xAI), endpoint
-"Chat Completions" (estilo OpenAI: modelo + arreglo de mensajes
-system/user). Se cambio de Gemini a Grok porque la cuenta de Google del
-equipo quedo bloqueada con un 403 "Your project has been denied access"
-(problema conocido de cuentas nuevas/sin facturacion, ver
-claude/integracion-api-gemini-reservas-ia.md en el proyecto de Claude
-para el detalle). Esta clase UNICAMENTE interpreta la frase: no valida
+datos y llenara el formulario"). Usa la API de Groq (groq.com, no confundir
+con Grok/xAI), endpoint "Chat Completions" compatible con el formato de
+OpenAI (modelo + arreglo de mensajes system/user). Se eligio Groq porque
+ofrece un tier gratuito real de modelos de solo texto, sin necesidad de
+tarjeta ni facturacion (a diferencia de Grok/xAI, que es prepago desde el
+inicio, y de Gemini, cuya cuenta del equipo quedo bloqueada con un 403 -
+ver claude/integracion-api-gemini-reservas-ia.md en el proyecto de Claude
+para ese historial). Esta clase UNICAMENTE interpreta la frase: no valida
 disponibilidad, no valida que las categorias existan, no inventa datos
 que no esten en la frase. Esa responsabilidad sigue siendo de
 ReservationService/Employee#tryBook - aqui solo se llena texto.
 */
 public class AIReservationExtractionService {
 
-    private static final String API_URL = "https://api.x.ai/v1/chat/completions";
+    private static final String API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-    // Modelo economico de Grok: de sobra para esta extraccion (frase corta,
-    // XML corto de salida). Revisar en console.x.ai/api-keys o en la doc de
-    // xAI si este nombre ya no esta disponible cuando se corra el proyecto.
-    private static final String MODEL = "grok-4.3";
+    // Modelo de texto del tier gratuito de Groq: rapido y de sobra para esta
+    // extraccion (frase corta, XML corto de salida). Revisar en
+    // console.groq.com/docs/models si este nombre ya no esta disponible
+    // cuando se corra el proyecto.
+    private static final String MODEL = "llama-3.1-8b-instant";
 
-    private static final String ENV_VAR_NAME = "XAI_API_KEY";
+    private static final String ENV_VAR_NAME = "GROQ_API_KEY";
 
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
     /**
-     * Envía la frase escrita por el funcionario a Grok y devuelve los
+     * Envía la frase escrita por el funcionario a Groq y devuelve los
      * datos que la IA pudo extraer. Lanza {@link AIExtractionException}
      * ante cualquier falla (sin red, clave ausente/inválida, límite de
      * uso alcanzado, XML mal formado) para que el Controller lo traduzca
@@ -60,7 +62,7 @@ public class AIReservationExtractionService {
         String apiKey = System.getenv(ENV_VAR_NAME);
         if (apiKey == null || apiKey.isBlank()) {
             throw new AIExtractionException("No se encontró la variable de entorno " + ENV_VAR_NAME
-                    + " con la clave de la API de Grok.");
+                    + " con la clave de la API de Groq.");
         }
 
         String requestBody = buildRequestBody(phrase);
@@ -81,7 +83,7 @@ public class AIReservationExtractionService {
         }
 
         if (response.statusCode() != 200) {
-            throw new AIExtractionException("La API de Grok respondió con error " + response.statusCode()
+            throw new AIExtractionException("La API de Groq respondió con error " + response.statusCode()
                     + ": " + response.body());
         }
 
@@ -122,18 +124,18 @@ public class AIReservationExtractionService {
         try {
             json = new JSONObject(responseBody);
         } catch (Exception e) {
-            throw new AIExtractionException("La respuesta de la API de Grok no es un JSON válido.", e);
+            throw new AIExtractionException("La respuesta de la API de Groq no es un JSON válido.", e);
         }
 
         JSONArray choices = json.optJSONArray("choices");
         if (choices == null || choices.isEmpty()) {
-            throw new AIExtractionException("Grok no devolvió ninguna respuesta.");
+            throw new AIExtractionException("Groq no devolvió ninguna respuesta.");
         }
 
         JSONObject message = choices.getJSONObject(0).optJSONObject("message");
         String content = (message != null) ? message.optString("content", null) : null;
         if (content == null || content.isBlank()) {
-            throw new AIExtractionException("Grok no devolvió texto en la respuesta.");
+            throw new AIExtractionException("Groq no devolvió texto en la respuesta.");
         }
         // Por si el modelo igual envuelve la salida en un bloque de código pese a la instrucción.
         return content.replaceAll("(?s)```xml\\s*|```", "").trim();
