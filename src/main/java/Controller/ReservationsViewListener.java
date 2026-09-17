@@ -4,6 +4,12 @@ import Model.Employee;
 import Model.Reservation;
 import Model.Resource;
 import Model.ResourceCategory;
+import Report.ReportException;
+import Report.ReportService;
+import Report.ReservationReportRow;
+import Service.AIExtractionException;
+import Service.AIReservationExtractionService;
+import Service.ExtractedReservationData;
 import Service.ServiceException;
 import View.DatePickerDialog;
 import View.ReservationsView;
@@ -11,19 +17,23 @@ import View.TimePickerDialog;
 
 import javax.swing.JComboBox;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
+import java.awt.Cursor;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Maneja los eventos de {@link ReservationsView}: el botón de ayuda "?"
- * (explica el llenado por IA), el llenado automático por IA (aún no
- * implementado en el Model), y las acciones de Guardar, Cancelar y
- * Limpiar de la sección "Nueva reserva".
+ * (explica el llenado por IA), el llenado automático por IA a partir de
+ * la "Frase" (ver {@link AIReservationExtractionService}), y las
+ * acciones de Guardar, Cancelar y Limpiar de la sección "Nueva reserva".
  * <p>
  * Reglas pedidas: no se puede guardar una reserva con campos vacíos
  * (excepto "Frase"); no se puede cancelar una reserva sin haberla
@@ -42,6 +52,11 @@ public final class ReservationsViewListener {
     private final ReservationsView view;
     private final SessionContext session;
     private final Employee employee;
+
+    // La IA solo interpreta la frase y llena texto; no valida disponibilidad
+    // ni existencia de categorías (eso sigue en ReservationService), así que
+    // no necesita compartir la instancia de Service del resto del programa.
+    private final AIReservationExtractionService aiExtractionService = new AIReservationExtractionService();
 
     /**
      * Se invoca tras crear o cancelar una reserva, para que Calendarización
@@ -68,8 +83,7 @@ public final class ReservationsViewListener {
         view.getSaveButton().addActionListener(e -> onSave());
         view.getCancelButton().addActionListener(e -> onCancelReservation());
         view.getClearButton().addActionListener(e -> clearForm());
-        view.getPrintButton().addActionListener(e -> DialogHelper.info(view, "Imprimir",
-                "La generación de reportes en PDF se implementará en una etapa posterior."));
+        view.getPrintButton().addActionListener(e -> onPrint());
         view.getAddCategoryButton().addActionListener(e -> onAddCategory());
         view.getRemoveCategoryButton().addActionListener(e -> onRemoveCategory());
         view.getDateDropdownButton().addActionListener(e -> onPickDate());
@@ -166,9 +180,93 @@ public final class ReservationsViewListener {
         ((DefaultTableModel) view.getCategoriesTable().getModel()).removeRow(row);
     }
 
+    // ------------------------------------------------------------------
+    // Llenado automático por IA (a partir de la "Frase")
+    // ------------------------------------------------------------------
+
+    /**
+     * Envía la "Frase" a {@link AIReservationExtractionService} en un hilo
+     * aparte (la llamada de red toma 1-3s) y, con lo que devuelva, precarga
+     * el resto del formulario. Nunca bloquea el flujo normal: ante
+     * cualquier falla (sin red, clave ausente, bloqueo de seguridad, XML
+     * mal formado) solo avisa y deja el formulario para llenado manual.
+     */
     private void onAiFill() {
-        DialogHelper.info(view, "Generación automática",
-                "La interpretación de la frase mediante Inteligencia Artificial se implementará en una etapa posterior.");
+        String phrase = view.getPhraseField().getText().trim();
+        if (phrase.isEmpty()) {
+            DialogHelper.warn(view, "Escriba una frase en el campo \"Frase\" antes de generar la reserva.");
+            return;
+        }
+
+        view.getAiButton().setEnabled(false);
+        Cursor previousCursor = view.getCursor();
+        view.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+
+        new SwingWorker<ExtractedReservationData, Void>() {
+            @Override
+            protected ExtractedReservationData doInBackground() throws AIExtractionException {
+                return aiExtractionService.extractFromPhrase(phrase);
+            }
+
+            @Override
+            protected void done() {
+                view.setCursor(previousCursor);
+                view.getAiButton().setEnabled(true);
+                try {
+                    applyExtractedData(get());
+                } catch (Exception ex) {
+                    Throwable cause = (ex.getCause() != null) ? ex.getCause() : ex;
+                    DialogHelper.warn(view, "No se pudo interpretar la frase (" + cause.getMessage()
+                            + "). Complete los campos manualmente.");
+                }
+            }
+        }.execute();
+    }
+
+    /** Precarga el formulario con lo que la IA logró extraer; el usuario puede revisar/editar antes de guardar. */
+    private void applyExtractedData(ExtractedReservationData data) {
+        if (data.getActivity() != null) {
+            view.getActivityField().setText(data.getActivity());
+        }
+        if (data.getDate() != null) {
+            view.getDateField().setText(data.getDate().format(DATE_FORMAT));
+        }
+        if (data.getStartTime() != null) {
+            view.getStartTimeField().setText(data.getStartTime().format(TIME_FORMAT));
+        }
+        if (data.getEndTime() != null) {
+            view.getEndTimeField().setText(data.getEndTime().format(TIME_FORMAT));
+        }
+
+        DefaultTableModel model = (DefaultTableModel) view.getCategoriesTable().getModel();
+        model.setRowCount(0);
+        for (String category : data.getCategoryDescriptions()) {
+            model.addRow(new Object[]{normalizeCategoryDescription(category)});
+        }
+
+        if (data.isEmpty()) {
+            DialogHelper.info(view, "Generación automática",
+                    "No se pudo identificar ningún dato en esa frase. Complete el formulario manualmente.");
+        }
+    }
+
+    /**
+     * Si lo que extrajo la IA coincide (sin importar mayúsculas/minúsculas)
+     * con una categoría real del sistema, se usa el texto exacto de esa
+     * categoría, para que quede reconocida al guardar sin que el usuario
+     * tenga que corregir un simple cambio de mayúsculas. Si no coincide con
+     * ninguna, se deja tal cual la extrajo la IA: el usuario la revisa y,
+     * si hace falta, la reemplaza usando el combo de categorías — esta
+     * clase no valida existencia ni disponibilidad, eso sigue en
+     * ReservationService.
+     */
+    private String normalizeCategoryDescription(String extracted) {
+        for (ResourceCategory category : session.getCategories().getCategories()) {
+            if (category.getDescription().equalsIgnoreCase(extracted)) {
+                return category.getDescription();
+            }
+        }
+        return extracted;
     }
 
     // ------------------------------------------------------------------
@@ -309,4 +407,39 @@ public final class ReservationsViewListener {
         }
         return String.join(", ", descriptions);
     }
+
+    // ------------------------------------------------------------------
+    // Imprimir (generación de reportes PDF con JasperReports)
+    // ------------------------------------------------------------------
+
+    /** Genera un PDF con las reservas actualmente mostradas en la tabla (las de {@code employee}) y lo guarda donde el usuario elija. */
+    private void onPrint() {
+        List<Reservation> reservations = employee.getReservations();
+        if (reservations.isEmpty()) {
+            DialogHelper.warn(view, "No tiene reservas registradas para imprimir.");
+            return;
+        }
+
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("employeeName", employee.getName());
+
+        try {
+            byte[] pdf = ReportService.generatePdf("/ReportDesign/mis_reservas.jrxml", toReservationRows(reservations), parameters);
+            DialogHelper.savePdfAndOpen(view, pdf, "mis_reservas.pdf", "Reservas");
+        } catch (ReportException ex) {
+            DialogHelper.error(view, "No fue posible generar el reporte: " + ex.getMessage());
+        }
+    }
+
+    private List<ReservationReportRow> toReservationRows(List<Reservation> reservations) {
+        List<ReservationReportRow> rows = new ArrayList<>();
+        for (Reservation reservation : reservations) {
+            String timeRange = reservation.getStartTime().format(TIME_FORMAT) + " - "
+                    + reservation.getEndTime().format(TIME_FORMAT);
+            rows.add(new ReservationReportRow(reservation.getActivity(), reservation.getDate().format(DATE_FORMAT),
+                    timeRange, describeResources(reservation), "Confirmada"));
+        }
+        return rows;
+    }
+
 }

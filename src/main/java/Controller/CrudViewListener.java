@@ -3,6 +3,11 @@ package Controller;
 import Model.Employee;
 import Model.Resource;
 import Model.ResourceCategory;
+import Report.CategoryReportRow;
+import Report.EmployeeReportRow;
+import Report.ReportException;
+import Report.ReportService;
+import Report.ResourceReportRow;
 import View.CRUDView;
 import View.EntityType;
 import View.FilterBuilder;
@@ -89,6 +94,7 @@ public final class CrudViewListener {
         view.getAddButton().addActionListener(e -> onAdd());
         view.getEditButton().addActionListener(e -> onEdit());
         view.getDeleteButton().addActionListener(e -> onDelete());
+        view.getPrintButton().addActionListener(e -> onPrint());
         TableInteractionUtil.deselectOnClickOutside(view.getTable(),
                 view.getAddButton(), view.getEditButton(), view.getDeleteButton());
     }
@@ -487,6 +493,70 @@ public final class CrudViewListener {
 
         DialogHelper.info(view, entityType.getPluralTitle(), "Elemento eliminado correctamente.");
         refreshAfterChange();
+    }
+
+    // ------------------------------------------------------------------
+    // Imprimir (generación de reportes PDF con JasperReports)
+    // ------------------------------------------------------------------
+
+    /**
+     * Genera un PDF con el listado actualmente mostrado en la tabla
+     * (los mismos {@link #currentResults} de la última búsqueda aplicada,
+     * no una nueva consulta) y lo guarda donde el usuario elija.
+     */
+    private void onPrint() {
+        if (currentResults.isEmpty()) {
+            DialogHelper.warn(view, "No hay datos para imprimir. Realice una búsqueda primero.");
+            return;
+        }
+
+        try {
+            byte[] pdf = switch (entityType) {
+                case FUNCIONARIO -> ReportService.generatePdf("/ReportDesign/funcionarios.jrxml", toEmployeeRows(), null);
+                case CATEGORIA -> ReportService.generatePdf("/ReportDesign/categorias.jrxml", toCategoryRows(), null);
+                case RECURSO -> ReportService.generatePdf("/ReportDesign/recursos.jrxml", toResourceRows(), null);
+            };
+            DialogHelper.savePdfAndOpen(view, pdf, defaultReportFileName(), entityType.getPluralTitle());
+        } catch (ReportException ex) {
+            DialogHelper.error(view, "No fue posible generar el reporte: " + ex.getMessage());
+        }
+    }
+
+    private List<EmployeeReportRow> toEmployeeRows() {
+        List<EmployeeReportRow> rows = new ArrayList<>();
+        for (Object entity : currentResults) {
+            Employee employee = (Employee) entity;
+            rows.add(new EmployeeReportRow(employee.getId(), employee.getName(), employee.getPhoneNumber()));
+        }
+        return rows;
+    }
+
+    private List<CategoryReportRow> toCategoryRows() {
+        List<CategoryReportRow> rows = new ArrayList<>();
+        for (Object entity : currentResults) {
+            ResourceCategory category = (ResourceCategory) entity;
+            rows.add(new CategoryReportRow(category.getId(), category.getDescription()));
+        }
+        return rows;
+    }
+
+    private List<ResourceReportRow> toResourceRows() {
+        List<ResourceReportRow> rows = new ArrayList<>();
+        for (Object entity : currentResults) {
+            Resource resource = (Resource) entity;
+            rows.add(new ResourceReportRow(resource.getResourceCategoryReference().getDescription(),
+                    resource.getId(), resource.getDescription()));
+        }
+        return rows;
+    }
+
+    private String defaultReportFileName() {
+        String base = switch (entityType) {
+            case FUNCIONARIO -> "funcionarios";
+            case CATEGORIA -> "categorias";
+            case RECURSO -> "recursos";
+        };
+        return base + ".pdf";
     }
 
     // ------------------------------------------------------------------

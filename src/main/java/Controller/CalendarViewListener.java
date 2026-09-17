@@ -4,6 +4,9 @@ import Model.Employee;
 import Model.Reservation;
 import Model.Resource;
 import Model.ResourceCategory;
+import Report.ReportException;
+import Report.ReportService;
+import Report.ScheduleReportRow;
 import View.CalendarView;
 import View.DatePickerDialog;
 import View.FilterBuilder;
@@ -59,6 +62,9 @@ public final class CalendarViewListener {
     /** {@code null} = "(Todas)"; si no, la descripción de la categoría activa. */
     private String activeCategory;
 
+    /** Recursos (mismo orden que las columnas de la grilla) de la última búsqueda aplicada; usado al imprimir. */
+    private List<Resource> currentResources = new ArrayList<>();
+
     public CalendarViewListener(CalendarView view, SessionContext session) {
         this.view = view;
         this.session = session;
@@ -76,8 +82,7 @@ public final class CalendarViewListener {
 
     private void wire() {
         view.getSearchButton().addActionListener(e -> onSearch());
-        view.getPrintButton().addActionListener(e -> DialogHelper.info(view, "Imprimir",
-                "La generación de reportes en PDF se implementará en una etapa posterior."));
+        view.getPrintButton().addActionListener(e -> onPrint());
         view.getDatePickerButton().addActionListener(e -> onPickDate());
 
         JTable table = view.getResourceCalendar().getTable();
@@ -195,6 +200,7 @@ public final class CalendarViewListener {
         ResourceCalendar calendar = view.getResourceCalendar();
         calendar.setResources(columnLabels);
         applySchedule(calendar, resources, activeDate);
+        currentResources = resources;
     }
 
     private void applySchedule(ResourceCalendar calendar, List<Resource> resources, LocalDate date) {
@@ -239,4 +245,51 @@ public final class CalendarViewListener {
         }
         return hours;
     }
+
+    // ------------------------------------------------------------------
+    // Imprimir (generación de reportes PDF con JasperReports)
+    // ------------------------------------------------------------------
+
+    /**
+     * Genera un PDF con el listado de ocupación (recurso, hora, actividad,
+     * funcionario) de la grilla actualmente mostrada -- es decir, a partir
+     * de {@link #cellIndex}, ya calculado por la última búsqueda aplicada,
+     * en vez de recalcularlo -- y lo guarda donde el usuario elija.
+     */
+    private void onPrint() {
+        List<ScheduleReportRow> rows = buildScheduleRows();
+        if (rows.isEmpty()) {
+            DialogHelper.warn(view, "No hay recursos agendados para los criterios seleccionados.");
+            return;
+        }
+
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("dateText", activeDate.format(DATE_FORMAT));
+        parameters.put("categoryText", (activeCategory != null) ? activeCategory : "(Todas)");
+
+        try {
+            byte[] pdf = ReportService.generatePdf("/ReportDesign/calendarizacion.jrxml", rows, parameters);
+            DialogHelper.savePdfAndOpen(view, pdf, "calendarizacion.pdf", "Calendarización");
+        } catch (ReportException ex) {
+            DialogHelper.error(view, "No fue posible generar el reporte: " + ex.getMessage());
+        }
+    }
+
+    /** Aplana {@link #cellIndex} a una fila por franja ocupada, ordenada por recurso y luego por hora. */
+    private List<ScheduleReportRow> buildScheduleRows() {
+        List<ScheduleReportRow> rows = new ArrayList<>();
+        List<String> hours = ResourceCalendar.hoursOfDay();
+        for (int resourceIndex = 0; resourceIndex < currentResources.size(); resourceIndex++) {
+            Resource resource = currentResources.get(resourceIndex);
+            for (String hour : hours) {
+                ScheduleEntry entry = cellIndex.get(resourceIndex + "|" + hour);
+                if (entry != null) {
+                    rows.add(new ScheduleReportRow(resource.getDescription(), hour,
+                            entry.reservation().getActivity(), entry.employee().getName()));
+                }
+            }
+        }
+        return rows;
+    }
+
 }

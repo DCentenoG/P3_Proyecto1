@@ -2,6 +2,9 @@ package Controller;
 
 import Model.Employee;
 import Model.Reservation;
+import Report.ReportException;
+import Report.ReportService;
+import Report.ScheduleReportRow;
 import View.ActivityCalendar;
 import View.ActivitySchedulingView;
 import View.DatePickerDialog;
@@ -16,6 +19,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +33,9 @@ import java.util.Map;
 public final class ActivitySchedulingViewListener {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    /** Mismos nombres y orden (Lunes..Viernes) que las columnas de {@link ActivityCalendar}. */
+    private static final String[] WEEKDAY_NAMES = {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes"};
 
     private final ActivitySchedulingView view;
     private final SessionContext session;
@@ -62,8 +69,7 @@ public final class ActivitySchedulingViewListener {
 
     private void wire() {
         view.getSearchButton().addActionListener(e -> onSearch());
-        view.getPrintButton().addActionListener(e -> DialogHelper.info(view, "Imprimir",
-                "La generación de reportes en PDF se implementará en una etapa posterior."));
+        view.getPrintButton().addActionListener(e -> onPrint());
         view.getWeekPickerButton().addActionListener(e -> onPickWeek());
 
         JTable table = view.getActivityCalendar().getTable();
@@ -167,4 +173,52 @@ public final class ActivitySchedulingViewListener {
             }
         }
     }
+
+    // ------------------------------------------------------------------
+    // Imprimir (generación de reportes PDF con JasperReports)
+    // ------------------------------------------------------------------
+
+    /**
+     * Genera un PDF con el listado de ocupación (día, hora, actividad,
+     * funcionario) de la grilla actualmente mostrada -- a partir de
+     * {@link #cellIndex}, ya calculado por la última búsqueda aplicada -- y
+     * lo guarda donde el usuario elija.
+     */
+    private void onPrint() {
+        List<ScheduleReportRow> rows = buildScheduleRows();
+        if (rows.isEmpty()) {
+            DialogHelper.warn(view, "No hay actividades agendadas para la semana seleccionada.");
+            return;
+        }
+
+        LocalDate monday = activeWeek.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate friday = monday.plusDays(4);
+
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("weekText", monday.format(DATE_FORMAT) + " al " + friday.format(DATE_FORMAT));
+
+        try {
+            byte[] pdf = ReportService.generatePdf("/ReportDesign/actividades.jrxml", rows, parameters);
+            DialogHelper.savePdfAndOpen(view, pdf, "actividades.pdf", "Actividades");
+        } catch (ReportException ex) {
+            DialogHelper.error(view, "No fue posible generar el reporte: " + ex.getMessage());
+        }
+    }
+
+    /** Aplana {@link #cellIndex} a una fila por franja ocupada, ordenada por día (Lunes..Viernes) y luego por hora. */
+    private List<ScheduleReportRow> buildScheduleRows() {
+        List<ScheduleReportRow> rows = new ArrayList<>();
+        List<String> hours = View.ResourceCalendar.hoursOfDay();
+        for (int dayIndex = 0; dayIndex < WEEKDAY_NAMES.length; dayIndex++) {
+            for (String hour : hours) {
+                ScheduleEntry entry = cellIndex.get(dayIndex + "|" + hour);
+                if (entry != null) {
+                    rows.add(new ScheduleReportRow(WEEKDAY_NAMES[dayIndex], hour,
+                            entry.reservation().getActivity(), entry.employee().getName()));
+                }
+            }
+        }
+        return rows;
+    }
+
 }
