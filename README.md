@@ -8,15 +8,15 @@ Sistema de escritorio en Java (Swing) para que funcionarios y administradores de
 
 | Integrante | Rol dentro del proyecto |
 |---|---|
-| **Daniel** | Funcionalidades de la capa Vista, capa Controlador, generación de reportes PDF y autocompletado de reservas por IA |
-| **Juan Pablo** | Lógica interna de la capa Modelo y manejo de excepciones, capa Controlador y autocompletado de reservas por IA |
+| **Daniel Centeno Gutierrez** | Funcionalidades de la capa Vista, capa Controlador, generación de reportes PDF y autocompletado de reservas por IA |
+| **Juan Pablo Arroyo Zumbado** | Lógica interna de la capa Modelo y manejo de excepciones, capa Controlador y autocompletado de reservas por IA |
 
 ## Funcionalidades implementadas
 
 - **Autenticación**: inicio de sesión y cambio de clave, para roles de Administrador y Funcionario.
 - **Gestión de funcionarios, categorías y recursos** (Administrador): alta, edición, borrado y filtrado/búsqueda en tiempo real (CRUD) sobre cada entidad.
 - **Reservas** (Funcionario): registro de reservas asignando recursos por categoría (todo-o-nada: si alguna categoría requerida no tiene disponibilidad, no se guarda nada de la reserva), consulta de "Mis reservas" y cancelación.
-- **Autocompletado de reservas por IA**: un campo de "Frase" en el formulario de reservas donde el funcionario describe la reserva en lenguaje natural (ej. "Necesito la sala de reuniones mañana de 2 a 4pm"); el sistema invoca un LLM (API de Grok/xAI) que extrae actividad, fecha, horas y categorías y llena el formulario, que el usuario puede revisar/editar antes de guardar. La IA solo interpreta texto: la validación de disponibilidad y existencia de recursos la sigue haciendo la capa Service/Model, igual que en el flujo manual.
+- **Autocompletado de reservas por IA**: un campo de "Frase" en el formulario de reservas donde el funcionario describe la reserva en lenguaje natural (ej. "Necesito la sala de reuniones mañana de 2 a 4pm"); el sistema invoca un LLM (API de Groq) que extrae actividad, fecha, horas y categorías y llena el formulario, que el usuario puede revisar/editar antes de guardar. La IA solo interpreta texto: la validación de disponibilidad y existencia de recursos la sigue haciendo la capa Service/Model, igual que en el flujo manual.
 - **Calendarización**: vista de calendario de actividades y de recursos, para Administrador y Funcionario.
 - **Estadísticas**: paneles de conteo por categoría de recurso y por semana, filtrables por rango de fechas, con gráfico de barras.
 - **Reportes en PDF**: generación e impresión de reportes (categorías, funcionarios, recursos, actividades, calendarización, "mis reservas") a partir de plantillas JasperReports (`.jrxml`), abiertos con el visor nativo del sistema operativo.
@@ -65,20 +65,19 @@ P3_Proyecto1/
 - **Swing** para la interfaz gráfica de escritorio
 - **JasperReports 6.20.6** (`net.sf.jasperreports:jasperreports`) — generación de reportes PDF a partir de plantillas `.jrxml` diseñadas en Jaspersoft Studio
 - **org.json 20251224** — construcción/parseo de JSON para la llamada a la API de IA
-- **API de Grok (xAI)** — endpoint `chat/completions`, usada por `AIReservationExtractionService` para interpretar la frase en lenguaje natural del funcionario
+- **API de Groq** — endpoint `chat/completions` (compatible con el formato de OpenAI), usada por `AIReservationExtractionService` para interpretar la frase en lenguaje natural del funcionario
 - **JUnit Jupiter 5.11.0** + **Maven Surefire Plugin** (pruebas unitarias `*Test.java`) + **Maven Failsafe Plugin** (pruebas de integración `*IT.java`), según lo exige el enunciado del curso
 
 ## Requisitos previos
 
 - JDK 20 instalado
 - Maven (viene empaquetado con IntelliJ IDEA; no requiere instalación aparte)
-- Una API key de xAI (Grok) en `console.x.ai`, con crédito prepago cargado (Grok no tiene tier gratuito)
-- (Opcional, solo para editar las plantillas de reportes) Jaspersoft Studio Community, versión compatible con JasperReports 6.20.6
+- Una API key de Groq, generada en `console.groq.com` (tier gratuito real, sin tarjeta ni facturación)
 
 ## Configuración
 
 1. Clonar el repositorio y abrir la carpeta del proyecto en IntelliJ apuntando directamente a su `pom.xml` (File → Open → seleccionar `pom.xml` → "Open as Project").
-2. Configurar la variable de entorno `XAI_API_KEY` con la API key de xAI, necesaria para el autocompletado por IA:
+2. Configurar la variable de entorno `GROQ_API_KEY` con la API key de Groq, necesaria para el autocompletado por IA:
    - En IntelliJ: Run/Debug Configurations → Modify options → Environment variables.
    - Sin esta variable, el resto del sistema (reservas manuales, CRUD, calendario, estadísticas, reportes PDF) funciona con normalidad; solo el botón "Generar con IA" mostrará un error controlado.
 
@@ -96,12 +95,16 @@ Para ejecutar la aplicación, correr el método `main` de `src/main/java/Main.ja
 
 El sistema no usa base de datos: todo el estado (usuarios, categorías, recursos, reservas) se guarda en el archivo XML `src/Data/system.xml`, leído y escrito por `Persistence/SystemXmlRepository`. Si el archivo no existe o está vacío, la aplicación siembra datos de prueba al iniciar (un administrador y un funcionario de ejemplo).
 
-## Estado del proyecto / pendientes conocidos
+## Decisiones de diseño más importantes
 
-- El autocompletado de reservas por IA está implementado y conectado end-to-end, pero tiene errores conocidos aún sin depurar (comportamiento a validar con distintas frases de entrada).
-- El proveedor de IA usado actualmente es **Grok (xAI)**; se intentó primero con **Gemini (Google)**, descartado por un bloqueo de cuenta (403 `permission_denied`) que no se pudo resolver a tiempo. El código de la integración con Gemini se conserva documentado por si se retoma más adelante.
-- Los reportes en PDF (6 plantillas: categorías, funcionarios, recursos, actividades, calendarización, mis reservas) están completos y probados.
+- **Migración de proyecto plano de IntelliJ a Maven.** El proyecto arrancó sin `pom.xml`, con un solo `.iml` y `src/` sin separar `main`/`test`. Se migró a una estructura Maven estándar antes de implementar los reportes PDF, por dos razones: Maven gestiona automáticamente JasperReports y sus ~20 librerías dependientes (evita agregar JARs a mano, algo frágil y no reproducible entre las tres computadoras del equipo), y el enunciado del curso exige explícitamente **Surefire Plugin** y **Failsafe Plugin** para las pruebas, que solo existen en un proyecto Maven. La migración se aplicó dentro del repositorio real (`P3_Proyecto1`, con su historial de git y remoto de GitHub) en vez de partir de cero en un proyecto Maven nuevo, para no perder ese historial.
 
-## Historial de ramas de desarrollo
+- **Capa `Service` como única responsable de las reglas de negocio.** La lógica de armar una reserva (asignar el primer recurso disponible por categoría, todo-o-nada) se movió del `Controller` al `Service`/`Model` (`ReservationService`, `Employee.tryBook`), siguiendo el mismo patrón que ya usaban `UserService`/`ResourceService` (reciben una instancia compartida de `Service` por constructor, expuesta vía `SessionContext`). El objetivo es que el `Controller` solo valide formato de entrada y traduzca la interacción del usuario, y que la validación de disponibilidad, existencia de recursos y reglas de negocio viva en un solo lugar — incluido el flujo de autocompletado por IA, que reutiliza el mismo `ReservationService.createReservation` que el flujo manual.
 
-El trabajo se organizó en ramas por área (`View_Features`, `Controller_features`, `Persistence_Features`, `Model_Features`), una rama para la migración de estructura plana de IntelliJ a Maven (`Migracion_Maven`), y ramas de feature para los reportes PDF (`PDF_ReportGenerator`) y el autocompletado por IA (`AI_Autocomplete`, construida sobre `PDF_ReportGenerator`), integradas posteriormente sobre `Model_Features`.
+- **La IA solo interpreta texto; nunca valida ni decide.** El autocompletado por lenguaje natural se diseñó para que el LLM únicamente extraiga datos (actividad, fecha, horas, categorías) en un XML de esquema fijo, dejando vacío lo que no esté claro y sin inventar valores. La disponibilidad de recursos y la existencia de categorías las sigue validando exclusivamente la capa Service/Model, igual que en el flujo manual — así un error o alucinación del modelo de IA nunca puede crear una reserva inválida.
+
+- **Groq como proveedor de IA, tras descartar Gemini.** El enunciado exige un modelo de lenguaje gratuito. Se intentó primero con **Gemini** (Google), que sí tiene tier gratuito real, pero la cuenta quedó bloqueada con un 403 `permission_denied` (un problema conocido de Google en cuentas nuevas sin facturación) que no se pudo resolver a tiempo. Se optó entonces por **Groq** (`groq.com`), que sí ofrece un tier gratuito real sin tarjeta ni facturación para modelos de texto. Al ser Groq compatible con el mismo formato de mensajes estilo OpenAI que ya se había implementado, el cambio de proveedor quedó aislado a `AIReservationExtractionService`, sin tocar el resto de la arquitectura.
+
+- **`java.net.http.HttpClient` y `org.json` en vez de un SDK de terceros para la IA.** Para la llamada a la API del LLM se usó el cliente HTTP estándar del JDK y la librería `org.json` (ya liviana) en vez de agregar un SDK propietario del proveedor, precisamente para que un futuro cambio de proveedor (como el de Gemini a Groq) quedara aislado a una sola clase y no arrastrara dependencias nuevas cada vez.
+
+- **Prevenir en los selectores en vez de avisar después de fallar.** Siguiendo una preferencia general del equipo de "prevenir en vez de avisar", los selectores de fecha deshabilitan directamente los días pasados (`min = LocalDate.now()` en `DatePickerDialog`) en vez de permitir seleccionarlos y solo mostrar el error al intentar guardar la reserva.
