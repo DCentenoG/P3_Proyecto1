@@ -43,7 +43,7 @@ public class AIReservationExtractionService {
     // extraccion (frase corta, XML corto de salida). Revisar en
     // console.groq.com/docs/models si este nombre ya no esta disponible
     // cuando se corra el proyecto.
-    private static final String MODEL = "llama-3.1-8b-instant";
+    private static final String MODEL = "openai/gpt-oss-20b";
 
     private static final String ENV_VAR_NAME = "GROQ_API_KEY";
 
