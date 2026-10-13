@@ -87,6 +87,14 @@ public class Reservation {
     metodo que llama a addResource al crear la reserva y llama a este metodo n veces segun la cantidad de categorias de
     recursos seleccionadas en la capa de la vista*/
     public boolean addResource(Resource resource, UserContainer users) {
+        return addResource(resource, users, null);
+    }
+
+    /*Igual que addResource(resource, users), pero sin tomar en cuenta la reserva "ignored" al revisar
+    choques de horario. Se usa al EDITAR una reserva: la version nueva se arma en una reserva temporal y no
+    debe "chocar" con la reserva original que va a reemplazar (cuyos recursos se liberan al aplicar la
+    edicion). La comparacion es por identidad (==), no por contenido.*/
+    public boolean addResource(Resource resource, UserContainer users, Reservation ignored) {
 
         //Certificates first if the resource is already on another reservation at the same time
         ArrayList<Employee> listOfEmployeesForCheckingReservations = users.getListOfEmployees();
@@ -94,6 +102,9 @@ public class Reservation {
             Employee aux = listOfEmployeesForCheckingReservations.get(i);
             ArrayList<Reservation> toCheckList = aux.getReservations();
             for (int j = 0; j < toCheckList.size(); j++) {
+                if (toCheckList.get(j) == ignored) {
+                    continue;
+                }
                 if (this.overlaps(toCheckList.get(j))) {
                     for (int k = 0; k < toCheckList.get(j).getAssignedResources().size(); k++) {
                         if (toCheckList.get(j).getAssignedResources().get(k).isSameResource(resource)) {

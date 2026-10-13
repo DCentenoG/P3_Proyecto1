@@ -1,6 +1,7 @@
 package Controller;
 
 import Model.Reservation;
+import Service.ServiceException;
 import View.EditReservationForm;
 
 /**
@@ -70,13 +71,19 @@ public final class EditReservationFormListener {
             return;
         }
 
-        // PENDIENTE (Modelo, paso 1): aplicar la edición con el servicio de
-        // reservas, p. ej. session.getReservationService().editReservation(...)
-        // con los datos de "input", traduciendo su ServiceException a
-        // DialogHelper.error. Hasta entonces el formulario solo valida.
-        DialogHelper.info(form, "Editar reserva",
-                "Los datos son válidos. El guardado de los cambios se habilitará al implementar la edición en el modelo.");
+        // Revalidar, reasignar recursos (todo o nada) y guardar el XML vive en
+        // Service.ReservationService (ver Model.Employee#tryEdit): aquí solo se
+        // juntan los datos del formulario y se traduce el resultado a diálogos.
+        // Si falla, el formulario queda abierto para que el funcionario corrija.
+        try {
+            session.getReservationService().editReservation(session.getCurrentUser().getId(), reservation,
+                    input.activity(), input.date(), input.startTime(), input.endTime(), input.categories());
+        } catch (ServiceException ex) {
+            DialogHelper.error(form, ex.getMessage());
+            return;
+        }
 
+        DialogHelper.info(form, "Editar reserva", "Los cambios de la reserva se guardaron correctamente.");
         form.dispose();
         afterSave.run();
     }
