@@ -1,6 +1,7 @@
 package Controller;
 
 import Model.User;
+import Service.ServiceException;
 import View.PasswordChangeForm;
 
 /**
@@ -37,10 +38,6 @@ public final class PasswordChangeFormListener {
             DialogHelper.warn(view, "Debe completar todos los campos para cambiar la clave.");
             return;
         }
-        if (!current.equals(user.getPassword())) {
-            DialogHelper.error(view, "La clave actual ingresada no es correcta.");
-            return;
-        }
         if (!newPassword.equals(confirmed)) {
             DialogHelper.warn(view, "La clave nueva y su confirmación no coinciden.");
             return;
@@ -49,10 +46,10 @@ public final class PasswordChangeFormListener {
             return;
         }
 
-        String previousPassword = user.getPassword();
-        user.setPassword(newPassword);
-        if (!session.save(view)) {
-            user.setPassword(previousPassword);
+        try {
+            session.getUserService().changePassword(user, current, newPassword);
+        } catch (ServiceException ex) {
+            DialogHelper.error(view, ex.getMessage());
             return;
         }
 

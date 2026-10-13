@@ -8,6 +8,8 @@ import Model.Resource;
 import Model.ResourceCategory;
 import Model.User;
 import Model.UserContainer;
+import Model.exceptions.DuplicateResourceException;
+import Model.exceptions.ResourceNotFoundException;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -122,7 +124,12 @@ public class SystemXmlRepository {
                 Element resourceEl = (Element) resourcesXml.item(j);
                 int resourceId = Integer.parseInt(resourceEl.getAttribute("id"));
                 String resourceDescription = resourceEl.getAttribute("description");
-                category.addResource(resourceId, resourceDescription);
+                try {
+                    category.addResource(resourceId, resourceDescription);
+                } catch (DuplicateResourceException e) {
+                    throw new IllegalStateException(
+                            "El archivo XML contiene un recurso duplicado en la categoria '" + id + "'.", e);
+                }
             }
 
             list.add(category);
@@ -214,13 +221,19 @@ public class SystemXmlRepository {
             int resourceId = Integer.parseInt(resourceEl.getAttribute("resourceId"));
 
             ResourceCategory category = findCategoryById(categories, categoryId);
-            if (category != null) {
+            if (category == null) {
+                throw new IllegalStateException(
+                        "El archivo XML referencia una categoria inexistente: '" + categoryId + "'.");
+            }
+            try {
                 Resource resource = category.getResourceById(resourceId);
-                if (resource != null) {
-                    //Se agrega la MISMA instancia que vive dentro de la categoria, no una copia,
-                    //para que la reserva y la categoria sigan compartiendo el mismo objeto Resource.
-                    assigned.add(resource);
-                }
+                //Se agrega la MISMA instancia que vive dentro de la categoria, no una copia,
+                //para que la reserva y la categoria sigan compartiendo el mismo objeto Resource.
+                assigned.add(resource);
+            } catch (ResourceNotFoundException e) {
+                throw new IllegalStateException(
+                        "El archivo XML referencia un recurso inexistente: categoria '"
+                                + categoryId + "', recurso '" + resourceId + "'.", e);
             }
         }
         return assigned;

@@ -1,5 +1,8 @@
 package Model;
 
+import Model.exceptions.DuplicateResourceException;
+import Model.exceptions.ResourceNotFoundException;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -45,40 +48,46 @@ public class ResourceCategory {
     public int getSize() { return resources.size();}
 
     //Logic and calculus methods
-    public void addResource(int id, String description) {
-        if (getResourceById(id) != null) {
-            // lanzar excepción: id de recurso ya existe en esta categoría
-            return;
+    public void addResource(int id, String description) throws DuplicateResourceException {
+        for (Resource resource : resources) {
+            if (resource.getId() == id) {
+                throw new DuplicateResourceException(
+                        "Ya existe un recurso con el id '" + id + "' en esta categoria.");
+            }
         }
         resources.add(new Resource(id, this, description));
-    } //PENDIENTE IMPLEMENTAR EXCEPCIONES DE PARAMETROS VALIDOS
+    }
 
-    public Resource getResourceById(int id) {
+    public Resource getResourceById(int id) throws ResourceNotFoundException {
         for (int i = 0; i < resources.size(); i++) {
             if (resources.get(i).getId() == id) {
                 return resources.get(i);
             }
         }
-        return null; //PENDIENTE RETORNAR UNA EXCEPCION DE NO EXISTIR EL RECURSO BUSCADO Y DE ID VALIDO
+        throw new ResourceNotFoundException(
+                "No existe ningun recurso con el id '" + id + "' en esta categoria.");
     }
 
-    public Resource getResourceByDescription(String description) {
+    public Resource getResourceByDescription(String description) throws ResourceNotFoundException {
         for (int i = 0; i < resources.size(); i++) {
             if (Objects.equals(resources.get(i).getDescription(), description)) {
                 return resources.get(i);
             }
         }
-        return null; //PENDIENTE RETORNAR UNA EXCEPCION DE NO EXISTIR EL RECURSO BUSCADO
+        throw new ResourceNotFoundException(
+                "No existe ningun recurso con la descripcion '" + description + "' en esta categoria.");
     }
 
-    public void deleteResourceByIdAndDescription(int id, String description) {
+    public void deleteResourceByIdAndDescription(int id, String description) throws ResourceNotFoundException {
         for (int i = 0; i < resources.size(); i++) {
             if (resources.get(i).getId() == id && resources.get(i).getDescription().equals(description)) {
                 resources.remove(i);
                 return;
             }
         }
-    } //PENDIENTE IMPLEMENTAR EXCEPCION DE RECURSO NO ENCONTRADO Y DE PARAMETROS INVALIDOS
+        throw new ResourceNotFoundException(
+                "No existe el recurso indicado en esta categoria.");
+    }
 
     public void deleteAllResources() {
         resources.clear();

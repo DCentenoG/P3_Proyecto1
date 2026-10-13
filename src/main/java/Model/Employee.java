@@ -1,5 +1,7 @@
 package Model;
 
+import Model.exceptions.ResourceUnavailableException;
+
 import java.util.ArrayList;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -57,11 +59,12 @@ public class Employee extends User{
      * categoría requerida el primer recurso disponible en ese horario.
      * Si CUALQUIER categoría se queda sin recursos disponibles, la reserva
      * NO se agrega (todo o nada) y se retorna la lista de categorías sin
-     * disponibilidad. Si la lista retornada está vacía, la reserva se creó
-     * y ya quedó agregada a este funcionario.
+     * disponibilidad. Si todas las categorías tienen disponibilidad, la
+     * reserva se agrega a este funcionario.
      */
-    public List<String> tryBook(String activity, LocalDate date, LocalTime startTime, LocalTime endTime,
-                                List<ResourceCategory> requiredCategories, UserContainer users) {
+    public void tryBook(String activity, LocalDate date, LocalTime startTime, LocalTime endTime,
+                        List<ResourceCategory> requiredCategories, UserContainer users)
+            throws ResourceUnavailableException {
 
         Reservation reservation = new Reservation(activity, date, startTime, endTime);
         List<String> unavailableCategories = new ArrayList<>();
@@ -82,11 +85,10 @@ public class Employee extends User{
         }
 
         if (!unavailableCategories.isEmpty()) {
-            return unavailableCategories; // se descarta todo el intento, nada queda a medias
+            throw new ResourceUnavailableException(unavailableCategories);
         }
 
         reservations.add(reservation);
-        return List.of(); // éxito: lista vacía
     }
 
 }

@@ -4,8 +4,10 @@ import Model.CategoryContainer;
 import Model.User;
 import Model.UserContainer;
 import Service.ReservationService;
+import Service.ResourceService;
 import Service.Service;
 import Service.ServiceException;
+import Service.UserService;
 
 import java.awt.Component;
 
@@ -75,6 +77,14 @@ public final class SessionContext {
      */
     public ReservationService getReservationService() {
         return new ReservationService(service);
+    }
+
+    public UserService getUserService() {
+        return new UserService(service);
+    }
+
+    public ResourceService getResourceService() {
+        return new ResourceService(service);
     }
 
     public User getCurrentUser() {
