@@ -49,6 +49,7 @@ public final class IconLibrary {
     public static final String LOGOUT = "logout.png";
     public static final String NEXT = "next.png";
     public static final String PADLOCK = "padlock.png";
+    public static final String PENCIL = "pencil.png";
     public static final String PENCIL_WHITE = "pencilW.png";
     public static final String PLUS_WHITE = "plus.png";
     public static final String PRINTER = "printer.png";
