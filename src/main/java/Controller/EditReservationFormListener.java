@@ -1,14 +1,15 @@
 package Controller;
 
 import Model.Reservation;
+import Service.AIReservationExtractionService;
 import Service.ServiceException;
 import View.EditReservationForm;
 
 /**
  * Maneja los eventos de {@link EditReservationForm}: carga en el
- * formulario los datos de la reserva a editar y conecta los selectores
- * de fecha/hora, el combo + minitabla de categorías y los botones
- * Guardar/Cancelar.
+ * formulario los datos de la reserva a editar y conecta el llenado por
+ * IA a partir de la "Frase", los selectores de fecha/hora, el combo +
+ * minitabla de categorías y los botones Guardar/Cancelar.
  * <p>
  * El formulario se llena y se valida exactamente igual que "Nueva
  * reserva" (ver {@link ReservationFormSupport}): no se puede guardar con
@@ -20,6 +21,10 @@ public final class EditReservationFormListener {
     private final EditReservationForm form;
     private final SessionContext session;
     private final Reservation reservation;
+
+    // Misma IA que usa "Nueva reserva": solo interpreta la frase y llena
+    // texto; validar y guardar sigue en ReservationService.
+    private final AIReservationExtractionService aiExtractionService = new AIReservationExtractionService();
 
     /** Se invoca después de guardar los cambios, para que la vista que abrió el formulario se refresque. */
     private final Runnable afterSave;
@@ -36,6 +41,7 @@ public final class EditReservationFormListener {
     }
 
     private void wire() {
+        form.getAiButton().addActionListener(e -> onAiFill());
         form.getDateDropdownButton().addActionListener(e ->
                 ReservationFormSupport.pickDate(form, form.getDateField()));
         form.getStartTimeButton().addActionListener(e ->
@@ -48,6 +54,19 @@ public final class EditReservationFormListener {
                 ReservationFormSupport.removeSelectedCategory(form, form.getCategoriesTable()));
         form.getSaveButton().addActionListener(e -> onSave());
         form.getCancelButton().addActionListener(e -> form.dispose());
+    }
+
+    /**
+     * Completa el formulario a partir de la "Frase" con IA, igual que en
+     * "Nueva reserva" (ver {@link ReservationFormSupport#fillFromPhrase}):
+     * solo se reemplaza lo que la frase menciona, el resto de los datos de
+     * la reserva se conserva.
+     */
+    private void onAiFill() {
+        ReservationFormSupport.fillFromPhrase(form, aiExtractionService, form.getPhraseField(), form.getAiButton(),
+                new ReservationFormSupport.FormFields(form.getActivityField(), form.getDateField(),
+                        form.getStartTimeField(), form.getEndTimeField(), form.getCategoriesTable()),
+                session.getCategories().getCategories());
     }
 
     /** Precarga el formulario con los datos actuales de la reserva. */

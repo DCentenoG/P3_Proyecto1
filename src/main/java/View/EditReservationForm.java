@@ -26,10 +26,11 @@ import java.util.List;
  * seleccionada en "Mis reservas", con sus datos ya cargados.
  * <p>
  * Los campos se modifican exactamente igual que al crear una reserva
- * nueva: la fecha y las horas no se escriben, se eligen con sus botones
- * selectores ({@link DatePickerDialog}/{@link TimePickerDialog}), y las
- * categorías requeridas se agregan desde el combo con "+" y se quitan de
- * la minitabla con el botón de basurero.
+ * nueva: se pueden completar con IA a partir de la "Frase", la fecha y
+ * las horas no se escriben sino que se eligen con sus botones selectores
+ * ({@link DatePickerDialog}/{@link TimePickerDialog}), y las categorías
+ * requeridas se agregan desde el combo con "+" y se quitan de la
+ * minitabla con el botón de basurero.
  * <p>
  * Solo construye la interfaz gráfica: cargar los datos de la reserva,
  * los selectores, las validaciones y el guardado real se conectan desde
@@ -41,6 +42,11 @@ public class EditReservationForm extends JDialog {
     private static final int LABEL_WIDTH = 92;
     /** Ancho de los campos de hora (más angostos que un campo normal, como en el mockup). */
     private static final int TIME_FIELD_WIDTH = 72;
+    /** Alto del campo "Frase" (más alto que un campo normal, como en el mockup). */
+    private static final int PHRASE_FIELD_HEIGHT = 40;
+
+    private JTextField phraseField;
+    private JButton aiButton;
 
     private JTextField activityField;
     private JTextField dateField;
@@ -71,17 +77,55 @@ public class EditReservationForm extends JDialog {
         content.setBorder(BorderFactory.createEmptyBorder(20, 32, 20, 32));
         setContentPane(content);
 
-        JPanel header = new JPanel(new BorderLayout());
-        header.setOpaque(false);
-        header.add(UITheme.createNote("*: Campo obligatorio"), BorderLayout.EAST);
-
-        content.add(header, BorderLayout.NORTH);
+        content.add(buildPhraseSection(), BorderLayout.NORTH);
         content.add(buildFieldsPanel(), BorderLayout.CENTER);
         content.add(buildButtonsPanel(), BorderLayout.SOUTH);
 
         pack();
         setMinimumSize(getSize());
         setLocationRelativeTo(getOwner());
+    }
+
+    /**
+     * Sección "Frase" (mockup): etiqueta con el botón de IA a la derecha y,
+     * debajo, el campo donde el funcionario describe en lenguaje natural
+     * los cambios. Igual que en "Nueva reserva", la IA interpreta la frase
+     * y completa el resto del formulario; el funcionario revisa antes de
+     * guardar. Cierra con la nota de campos obligatorios, que aplica a los
+     * campos de abajo.
+     */
+    private JPanel buildPhraseSection() {
+        JPanel section = new JPanel(new BorderLayout(0, 6));
+        section.setOpaque(false);
+
+        // Mismo botón que el de "Nueva reserva" (ReservationsView).
+        aiButton = UITheme.createIconOnlyButton(IconLibrary.GENERATIVE, 26);
+        aiButton.setToolTipText("Completar el formulario a partir de la frase (IA)");
+        aiButton.setBorder(BorderFactory.createLineBorder(UITheme.FIELD_BORDER));
+        aiButton.setOpaque(true);
+        aiButton.setBackground(UITheme.WHITE);
+        aiButton.setContentAreaFilled(true);
+        aiButton.setPreferredSize(new Dimension(42, 36));
+
+        JPanel labelRow = new JPanel(new BorderLayout());
+        labelRow.setOpaque(false);
+        JLabel phraseLabel = UITheme.createLabel("Frase");
+        labelRow.add(phraseLabel, BorderLayout.WEST);
+        labelRow.add(aiButton, BorderLayout.EAST);
+
+        phraseField = new JTextField();
+        UITheme.styleField(phraseField);
+        phraseField.setPreferredSize(new Dimension(phraseField.getPreferredSize().width, PHRASE_FIELD_HEIGHT));
+
+        JPanel note = new JPanel(new BorderLayout());
+        note.setOpaque(false);
+        note.setBorder(BorderFactory.createEmptyBorder(10, 0, 4, 0));
+        note.add(UITheme.createNote("*: Campo obligatorio"), BorderLayout.EAST);
+
+        section.add(labelRow, BorderLayout.NORTH);
+        section.add(phraseField, BorderLayout.CENTER);
+        section.add(note, BorderLayout.SOUTH);
+        return section;
     }
 
     private JPanel buildFieldsPanel() {
@@ -262,6 +306,10 @@ public class EditReservationForm extends JDialog {
 
     // ---- Métodos de acceso para el futuro controlador ----
 
+    /** Frase en lenguaje natural que la IA interpreta para completar el formulario. */
+    public JTextField getPhraseField() { return phraseField; }
+    /** Llena el formulario a partir de {@link #getPhraseField()} (IA). */
+    public JButton getAiButton() { return aiButton; }
     public JTextField getActivityField() { return activityField; }
     public JTextField getDateField() { return dateField; }
     public JButton getDateDropdownButton() { return dateDropdownButton; }

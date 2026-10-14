@@ -3,21 +3,16 @@ package Controller;
 import Model.Employee;
 import Model.Reservation;
 import Model.Resource;
-import Model.ResourceCategory;
 import Report.ReportException;
 import Report.ReportService;
 import Report.ReservationReportRow;
-import Service.AIExtractionException;
 import Service.AIReservationExtractionService;
-import Service.ExtractedReservationData;
 import Service.ServiceException;
 import View.EditReservationForm;
 import View.ReservationsView;
 
 import javax.swing.SwingUtilities;
-import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
-import java.awt.Cursor;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -121,89 +116,12 @@ public final class ReservationsViewListener {
     // Llenado automático por IA (a partir de la "Frase")
     // ------------------------------------------------------------------
 
-    /**
-     * Envía la "Frase" a {@link AIReservationExtractionService} en un hilo
-     * aparte (la llamada de red toma 1-3s) y, con lo que devuelva, precarga
-     * el resto del formulario. Nunca bloquea el flujo normal: ante
-     * cualquier falla (sin red, clave ausente, bloqueo de seguridad, XML
-     * mal formado) solo avisa y deja el formulario para llenado manual.
-     */
+    /** El llenado en sí (hilo aparte, avisos, normalización de categorías) está en {@link ReservationFormSupport}. */
     private void onAiFill() {
-        String phrase = view.getPhraseField().getText().trim();
-        if (phrase.isEmpty()) {
-            DialogHelper.warn(view, "Escriba una frase en el campo \"Frase\" antes de generar la reserva.");
-            return;
-        }
-
-        view.getAiButton().setEnabled(false);
-        Cursor previousCursor = view.getCursor();
-        view.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-
-        new SwingWorker<ExtractedReservationData, Void>() {
-            @Override
-            protected ExtractedReservationData doInBackground() throws AIExtractionException {
-                return aiExtractionService.extractFromPhrase(phrase);
-            }
-
-            @Override
-            protected void done() {
-                view.setCursor(previousCursor);
-                view.getAiButton().setEnabled(true);
-                try {
-                    applyExtractedData(get());
-                } catch (Exception ex) {
-                    Throwable cause = (ex.getCause() != null) ? ex.getCause() : ex;
-                    DialogHelper.warn(view, "No se pudo interpretar la frase (" + cause.getMessage()
-                            + "). Complete los campos manualmente.");
-                }
-            }
-        }.execute();
-    }
-
-    /** Precarga el formulario con lo que la IA logró extraer; el usuario puede revisar/editar antes de guardar. */
-    private void applyExtractedData(ExtractedReservationData data) {
-        if (data.getActivity() != null) {
-            view.getActivityField().setText(data.getActivity());
-        }
-        if (data.getDate() != null) {
-            view.getDateField().setText(data.getDate().format(DATE_FORMAT));
-        }
-        if (data.getStartTime() != null) {
-            view.getStartTimeField().setText(data.getStartTime().format(TIME_FORMAT));
-        }
-        if (data.getEndTime() != null) {
-            view.getEndTimeField().setText(data.getEndTime().format(TIME_FORMAT));
-        }
-
-        DefaultTableModel model = (DefaultTableModel) view.getCategoriesTable().getModel();
-        model.setRowCount(0);
-        for (String category : data.getCategoryDescriptions()) {
-            model.addRow(new Object[]{normalizeCategoryDescription(category)});
-        }
-
-        if (data.isEmpty()) {
-            DialogHelper.info(view, "Generación automática",
-                    "No se pudo identificar ningún dato en esa frase. Complete el formulario manualmente.");
-        }
-    }
-
-    /**
-     * Si lo que extrajo la IA coincide (sin importar mayúsculas/minúsculas)
-     * con una categoría real del sistema, se usa el texto exacto de esa
-     * categoría, para que quede reconocida al guardar sin que el usuario
-     * tenga que corregir un simple cambio de mayúsculas. Si no coincide con
-     * ninguna, se deja tal cual la extrajo la IA: el usuario la revisa y,
-     * si hace falta, la reemplaza usando el combo de categorías — esta
-     * clase no valida existencia ni disponibilidad, eso sigue en
-     * ReservationService.
-     */
-    private String normalizeCategoryDescription(String extracted) {
-        for (ResourceCategory category : session.getCategories().getCategories()) {
-            if (category.getDescription().equalsIgnoreCase(extracted)) {
-                return category.getDescription();
-            }
-        }
-        return extracted;
+        ReservationFormSupport.fillFromPhrase(view, aiExtractionService, view.getPhraseField(), view.getAiButton(),
+                new ReservationFormSupport.FormFields(view.getActivityField(), view.getDateField(),
+                        view.getStartTimeField(), view.getEndTimeField(), view.getCategoriesTable()),
+                session.getCategories().getCategories());
     }
 
     // ------------------------------------------------------------------

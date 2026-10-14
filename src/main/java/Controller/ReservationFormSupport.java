@@ -3,15 +3,21 @@ package Controller;
 import Model.Reservation;
 import Model.Resource;
 import Model.ResourceCategory;
+import Service.AIExtractionException;
+import Service.AIReservationExtractionService;
+import Service.ExtractedReservationData;
 import View.DatePickerDialog;
 import View.TimePickerDialog;
 
+import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Window;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -24,9 +30,10 @@ import java.util.List;
  * Comportamiento compartido por los dos formularios de reserva del
  * funcionario: "Nueva reserva" ({@code View.ReservationsView}) y
  * "Editar reserva" ({@code View.EditReservationForm}). Ambos se llenan
- * exactamente igual (selectores de fecha/hora, combo + minitabla de
- * categorías) y se validan con las mismas reglas, así que esa lógica
- * vive aquí una sola vez en vez de repetirse en cada listener.
+ * exactamente igual (llenado por IA a partir de la "Frase", selectores de
+ * fecha/hora, combo + minitabla de categorías) y se validan con las mismas
+ * reglas, así que esa lógica vive aquí una sola vez en vez de repetirse
+ * en cada listener.
  */
 final class ReservationFormSupport {
 
@@ -129,6 +136,107 @@ final class ReservationFormSupport {
             }
         }
         return categories;
+    }
+
+    // ------------------------------------------------------------------
+    // Llenado automático por IA (a partir de la "Frase")
+    // ------------------------------------------------------------------
+
+    /** Campos de un formulario de reserva que el llenado por IA puede completar. */
+    record FormFields(JTextField activity, JTextField date, JTextField startTime, JTextField endTime,
+                      JTable categoriesTable) {
+    }
+
+    /**
+     * Envía la "Frase" a {@link AIReservationExtractionService} en un hilo
+     * aparte (la llamada de red toma 1-3s) y, con lo que devuelva, precarga
+     * los campos del formulario. Nunca bloquea el flujo normal: ante
+     * cualquier falla (sin red, clave ausente, bloqueo de seguridad, XML
+     * mal formado) solo avisa y deja el formulario para llenado manual.
+     * <p>
+     * Solo se reemplaza lo que la IA logró identificar: un campo que la
+     * frase no menciona conserva su valor actual (importante en "Editar
+     * reserva", donde el formulario ya viene con los datos de la reserva).
+     */
+    static void fillFromPhrase(Component parent, AIReservationExtractionService aiService, JTextField phraseField,
+                               JButton aiButton, FormFields fields, List<ResourceCategory> systemCategories) {
+        String phrase = phraseField.getText().trim();
+        if (phrase.isEmpty()) {
+            DialogHelper.warn(parent, "Escriba una frase en el campo \"Frase\" antes de generar la reserva.");
+            return;
+        }
+
+        aiButton.setEnabled(false);
+        Cursor previousCursor = parent.getCursor();
+        parent.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+
+        new SwingWorker<ExtractedReservationData, Void>() {
+            @Override
+            protected ExtractedReservationData doInBackground() throws AIExtractionException {
+                return aiService.extractFromPhrase(phrase);
+            }
+
+            @Override
+            protected void done() {
+                parent.setCursor(previousCursor);
+                aiButton.setEnabled(true);
+                try {
+                    applyExtractedData(parent, get(), fields, systemCategories);
+                } catch (Exception ex) {
+                    Throwable cause = (ex.getCause() != null) ? ex.getCause() : ex;
+                    DialogHelper.warn(parent, "No se pudo interpretar la frase (" + cause.getMessage()
+                            + "). Complete los campos manualmente.");
+                }
+            }
+        }.execute();
+    }
+
+    /** Precarga el formulario con lo que la IA logró extraer; el usuario puede revisar/editar antes de guardar. */
+    private static void applyExtractedData(Component parent, ExtractedReservationData data, FormFields fields,
+                                           List<ResourceCategory> systemCategories) {
+        if (data.getActivity() != null) {
+            fields.activity().setText(data.getActivity());
+        }
+        if (data.getDate() != null) {
+            fields.date().setText(data.getDate().format(DATE_FORMAT));
+        }
+        if (data.getStartTime() != null) {
+            fields.startTime().setText(data.getStartTime().format(TIME_FORMAT));
+        }
+        if (data.getEndTime() != null) {
+            fields.endTime().setText(data.getEndTime().format(TIME_FORMAT));
+        }
+
+        if (!data.getCategoryDescriptions().isEmpty()) {
+            DefaultTableModel model = (DefaultTableModel) fields.categoriesTable().getModel();
+            model.setRowCount(0);
+            for (String category : data.getCategoryDescriptions()) {
+                model.addRow(new Object[]{normalizeCategoryDescription(category, systemCategories)});
+            }
+        }
+
+        if (data.isEmpty()) {
+            DialogHelper.info(parent, "Generación automática",
+                    "No se pudo identificar ningún dato en esa frase. Complete el formulario manualmente.");
+        }
+    }
+
+    /**
+     * Si lo que extrajo la IA coincide (sin importar mayúsculas/minúsculas)
+     * con una categoría real del sistema, se usa el texto exacto de esa
+     * categoría, para que quede reconocida al guardar sin que el usuario
+     * tenga que corregir un simple cambio de mayúsculas. Si no coincide con
+     * ninguna, se deja tal cual la extrajo la IA: el usuario la revisa y,
+     * si hace falta, la reemplaza usando el combo de categorías — aquí no
+     * se valida existencia ni disponibilidad, eso sigue en ReservationService.
+     */
+    private static String normalizeCategoryDescription(String extracted, List<ResourceCategory> systemCategories) {
+        for (ResourceCategory category : systemCategories) {
+            if (category.getDescription().equalsIgnoreCase(extracted)) {
+                return category.getDescription();
+            }
+        }
+        return extracted;
     }
 
     // ------------------------------------------------------------------
