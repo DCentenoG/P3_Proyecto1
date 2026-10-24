@@ -68,7 +68,8 @@ constante de Model.State), las categorias que pidio el funcionario
 (<requiredCategory>) y, si fue rechazada, el motivo ("rejectionReason").
 Compatibilidad con archivos anteriores a este flujo: una reserva sin "state"
 se carga "En revision" (IN_REVIEW), y una sin <requiredCategory> toma como
-categorias requeridas las de sus recursos asignados.
+categorias requeridas las de sus recursos asignados. Solo las reservas
+Aceptadas conservan <assignedResource> (ver Reservation.isAccepted).
 */
 public class SystemXmlRepository {
 
@@ -220,6 +221,12 @@ public class SystemXmlRepository {
             reservation.setState(parseState(reservationEl.getAttribute("state")));
             if (reservationEl.hasAttribute("rejectionReason")) {
                 reservation.setRejectionReason(reservationEl.getAttribute("rejectionReason"));
+            }
+            //Solo una reserva Aceptada tiene recursos asignados (los elige el administrador al
+            //aprobarla). Una reserva de un archivo anterior cargada "En revision" conserva sus
+            //categorias requeridas (deducidas arriba de esos recursos), pero no los recursos.
+            if (!reservation.isAccepted()) {
+                reservation.getAssignedResources().clear();
             }
 
             reservations.add(reservation);

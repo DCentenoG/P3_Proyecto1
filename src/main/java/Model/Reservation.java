@@ -1,6 +1,10 @@
 package Model;
+import Model.exceptions.InvalidReservationOperationException;
+import Model.exceptions.ResourceUnavailableException;
+
 import java.time.*;
 import java.util.ArrayList;
+import java.util.List;
 
 public class Reservation {
     //Attributes
@@ -118,44 +122,171 @@ public class Reservation {
                 && other.startTime.isBefore(this.endTime);
     }
 
-    /*Este metodo intenta agregar un recurso a la reserva verificando primero si no esta apartado en otra reserva
-    que coincida en hora y fecha.
-    
-    Se decidio incluir en la reserva para evitar acoplamiento de clases innecesario, esto porque Employee igual se le implementara un
-    metodo que llama a addResource al crear la reserva y llama a este metodo n veces segun la cantidad de categorias de
-    recursos seleccionadas en la capa de la vista*/
-    public boolean addResource(Resource resource, UserContainer users) {
-        return addResource(resource, users, null);
+    /* Solo una reserva Aceptada se muestra de forma global y ocupa recursos y horario. */
+    public boolean isAccepted() {
+        return state == State.ACCEPTED;
     }
 
-    /*Igual que addResource(resource, users), pero sin tomar en cuenta la reserva "ignored" al revisar
-    choques de horario. Se usa al EDITAR una reserva: la version nueva se arma en una reserva temporal y no
-    debe "chocar" con la reserva original que va a reemplazar (cuyos recursos se liberan al aplicar la
-    edicion). La comparacion es por identidad (==), no por contenido.*/
-    public boolean addResource(Resource resource, UserContainer users, Reservation ignored) {
-
-        //Certificates first if the resource is already on another reservation at the same time
+    /*Indica si "resource" esta libre en la fecha/horario de esta reserva: ninguna OTRA reserva ACEPTADA que
+    choque en horario lo tiene asignado. Las reservas En revision, Rechazadas o Canceladas no ocupan recursos.
+    Se ignora la reserva "ignored" (null si no hay ninguna): al EDITAR, la version nueva no debe "chocar" con
+    la reserva original que reemplaza. La comparacion es por identidad (==), no por contenido.*/
+    public boolean isResourceFree(Resource resource, UserContainer users, Reservation ignored) {
         ArrayList<Employee> listOfEmployeesForCheckingReservations = users.getListOfEmployees();
         for (int i = 0; i < listOfEmployeesForCheckingReservations.size(); i++) {
-            Employee aux = listOfEmployeesForCheckingReservations.get(i);
-            ArrayList<Reservation> toCheckList = aux.getReservations();
+            ArrayList<Reservation> toCheckList = listOfEmployeesForCheckingReservations.get(i).getReservations();
             for (int j = 0; j < toCheckList.size(); j++) {
-                if (toCheckList.get(j) == ignored) {
+                Reservation other = toCheckList.get(j);
+                if (other == this || other == ignored || !other.isAccepted()) {
                     continue;
                 }
-                if (this.overlaps(toCheckList.get(j))) {
-                    for (int k = 0; k < toCheckList.get(j).getAssignedResources().size(); k++) {
-                        if (toCheckList.get(j).getAssignedResources().get(k).isSameResource(resource)) {
+                if (this.overlaps(other)) {
+                    for (int k = 0; k < other.getAssignedResources().size(); k++) {
+                        if (other.getAssignedResources().get(k).isSameResource(resource)) {
                             return false;
                         }
                     }
                 }
             }
         }
+        return true;
+    }
 
-        /*if all the loop get to the last iteration it means that the resource is available at that moment
-        so you can add it and then returns true to clarify that it has been added*/
+    /* Recursos de "category" que estan libres en la fecha/horario de esta reserva (ver isResourceFree). */
+    public List<Resource> freeResourcesOf(ResourceCategory category, UserContainer users, Reservation ignored) {
+        List<Resource> free = new ArrayList<>();
+        for (Resource resource : category.getResources()) {
+            if (isResourceFree(resource, users, ignored)) {
+                free.add(resource);
+            }
+        }
+        return free;
+    }
+
+    /*Este metodo intenta agregar un recurso a la reserva verificando primero si no esta apartado en otra reserva
+    aceptada que coincida en hora y fecha.
+
+    Se decidio incluir en la reserva para evitar acoplamiento de clases innecesario.*/
+    public boolean addResource(Resource resource, UserContainer users) {
+        return addResource(resource, users, null);
+    }
+
+    /* Igual que addResource(resource, users), pero sin tomar en cuenta la reserva "ignored" al revisar choques. */
+    public boolean addResource(Resource resource, UserContainer users, Reservation ignored) {
+        if (!isResourceFree(resource, users, ignored)) {
+            return false;
+        }
         assignedResources.add(resource);
         return true;
+    }
+
+    //--- Cambios de estado (flujo de solicitudes) ---
+
+    /*
+    El funcionario cancela la reserva: pasa a Cancelada y libera los recursos y el
+    horario que ocupaba (si estaba Aceptada). Ya no se borra del sistema. Una
+    reserva Rechazada no se puede cancelar (no tiene sentido), ni una ya Cancelada.
+    */
+    public void cancel() throws InvalidReservationOperationException {
+        if (state == State.REJECTED) {
+            throw new InvalidReservationOperationException("No es posible cancelar una reserva rechazada.");
+        }
+        if (state == State.CANCELLED) {
+            throw new InvalidReservationOperationException("La reserva ya se encuentra cancelada.");
+        }
+        state = State.CANCELLED;
+        assignedResources.clear();
+    }
+
+    /*
+    El administrador aprueba la solicitud asignandole "chosenResources": exactamente
+    un recurso por cada categoria requerida, cada uno libre en la fecha/horario de la
+    reserva. Si algo no cumple, la reserva queda exactamente igual. Al aprobarse, la
+    reserva pasa a Aceptada y empieza a ocupar esos recursos en todo el sistema.
+    */
+    public void approve(List<Resource> chosenResources, UserContainer users)
+            throws InvalidReservationOperationException, ResourceUnavailableException {
+        requireInReview("aprobar");
+
+        List<String> missingCategories = new ArrayList<>();
+        ArrayList<Resource> assignment = new ArrayList<>();
+        for (ResourceCategory category : requiredCategories) {
+            Resource chosen = null;
+            for (Resource resource : chosenResources) {
+                if (resource != null && resource.getResourceCategoryReference() == category) {
+                    if (chosen != null) {
+                        throw new InvalidReservationOperationException(
+                                "Debe elegir un solo recurso para la categoria '" + category.getDescription() + "'.");
+                    }
+                    chosen = resource;
+                }
+            }
+            if (chosen == null) {
+                missingCategories.add(category.getDescription());
+            } else {
+                assignment.add(chosen);
+            }
+        }
+        if (!missingCategories.isEmpty()) {
+            throw new InvalidReservationOperationException("Debe elegir un recurso para la(s) categoria(s): "
+                    + String.join(", ", missingCategories));
+        }
+        if (assignment.size() != countNonNull(chosenResources)) {
+            throw new InvalidReservationOperationException(
+                    "Se eligio un recurso de una categoria que la solicitud no requiere.");
+        }
+
+        List<String> unavailableCategories = new ArrayList<>();
+        for (Resource resource : assignment) {
+            if (!isResourceFree(resource, users, null)) {
+                unavailableCategories.add(resource.getResourceCategoryReference().getDescription());
+            }
+        }
+        if (!unavailableCategories.isEmpty()) {
+            throw new ResourceUnavailableException(unavailableCategories);
+        }
+
+        assignedResources = assignment;
+        state = State.ACCEPTED;
+        rejectionReason = null;
+    }
+
+    /* El administrador rechaza la solicitud con un motivo (obligatorio). No ocupa recursos. */
+    public void reject(String reason) throws InvalidReservationOperationException {
+        requireInReview("rechazar");
+        if (reason == null || reason.isBlank()) {
+            throw new InvalidReservationOperationException("Debe indicar el motivo del rechazo.");
+        }
+        state = State.REJECTED;
+        rejectionReason = reason.trim();
+        assignedResources.clear();
+    }
+
+    /*
+    La reserva vuelve a ser una solicitud pendiente (se usa al EDITARLA, sin importar
+    su estado anterior): queda En revision, libera los recursos que tuviera y se borra
+    el motivo de un rechazo previo. Para volver a Aceptada debe revisarse de nuevo.
+    */
+    public void returnToReview() {
+        state = State.IN_REVIEW;
+        assignedResources.clear();
+        rejectionReason = null;
+    }
+
+    private void requireInReview(String action) throws InvalidReservationOperationException {
+        if (state != State.IN_REVIEW) {
+            throw new InvalidReservationOperationException("Solo se puede " + action
+                    + " una solicitud que esta En revision (esta reserva esta " + state.getLabel() + ").");
+        }
+    }
+
+    private static int countNonNull(List<Resource> resources) {
+        int count = 0;
+        for (Resource resource : resources) {
+            if (resource != null) {
+                count++;
+            }
+        }
+        return count;
     }
 }
