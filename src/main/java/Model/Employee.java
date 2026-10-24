@@ -74,6 +74,9 @@ public class Employee extends User{
             throw new ResourceUnavailableException(unavailableCategories);
         }
 
+        // La reserva nace "En revision" (valor por defecto de Reservation) y
+        // recuerda las categorias que pidio el funcionario.
+        reservation.setRequiredCategories(new ArrayList<>(requiredCategories));
         reservations.add(reservation);
     }
 
@@ -112,6 +115,7 @@ public class Employee extends User{
         target.setStartTime(edited.getStartTime());
         target.setEndTime(edited.getEndTime());
         target.setAssignedResources(edited.getAssignedResources());
+        target.setRequiredCategories(new ArrayList<>(requiredCategories));
     }
 
     /* Indica si "reservation" (la misma instancia, no una igual) es una de las reservas de este funcionario. */

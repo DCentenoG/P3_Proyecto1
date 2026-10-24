@@ -1,7 +1,6 @@
 package Controller;
 
 import Model.Reservation;
-import Model.Resource;
 import Model.ResourceCategory;
 import Service.AIExtractionException;
 import Service.AIReservationExtractionService;
@@ -118,22 +117,11 @@ final class ReservationFormSupport {
         ((DefaultTableModel) categoriesTable.getModel()).removeRow(row);
     }
 
-    /**
-     * Categorías de una reserva ya registrada, en orden y sin repetir.
-     * <p>
-     * Por ahora {@link Reservation} no guarda las categorías requeridas
-     * por separado, así que se deducen de la categoría de cada recurso
-     * asignado. Cuando el modelo de estados registre las categorías
-     * pedidas por el funcionario (los recursos pasan a asignarse al
-     * aprobar la solicitud), basta con cambiar este método.
-     */
+    /** Categorías requeridas de una reserva ya registrada, en el orden en que el funcionario las pidió. */
     static List<String> categoriesOf(Reservation reservation) {
         List<String> categories = new ArrayList<>();
-        for (Resource resource : reservation.getAssignedResources()) {
-            String description = resource.getResourceCategoryReference().getDescription();
-            if (!categories.contains(description)) {
-                categories.add(description);
-            }
+        for (ResourceCategory category : reservation.getRequiredCategories()) {
+            categories.add(category.getDescription());
         }
         return categories;
     }

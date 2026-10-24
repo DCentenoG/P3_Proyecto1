@@ -9,6 +9,14 @@ public class Reservation {
     private LocalTime startTime;
     private LocalTime endTime;
     private ArrayList<Resource> assignedResources;
+    //Categorias que el funcionario pidio para la reserva. Se guardan aparte de los recursos
+    //porque, con el flujo de solicitudes, el recurso especifico de cada categoria lo asigna el
+    //administrador al aprobar: una reserva "En revision" tiene categorias pero aun no recursos.
+    private ArrayList<ResourceCategory> requiredCategories;
+    //Estado de revision de la reserva (ver State). Toda reserva empieza "En revision".
+    private State state;
+    //Motivo indicado por el administrador al rechazar la solicitud (null si no esta rechazada).
+    private String rejectionReason;
     //End of attributes
 
     //Default Builder
@@ -18,6 +26,9 @@ public class Reservation {
         startTime = null;
         endTime = null;
         assignedResources = new ArrayList<>();
+        requiredCategories = new ArrayList<>();
+        state = State.IN_REVIEW;
+        rejectionReason = null;
     }
 
     //Parameterized Builder
@@ -27,6 +38,9 @@ public class Reservation {
         this.startTime = startTime;
         this.endTime = endTime;
         assignedResources = new ArrayList<>(); //PENDIENTE VERIFICAR SI RECIBE LOS RECURSOS O SE AGREGAN CON LA RESERVACION YA CREADA
+        requiredCategories = new ArrayList<>();
+        state = State.IN_REVIEW;
+        rejectionReason = null;
     }
 
     //basic getters
@@ -50,6 +64,18 @@ public class Reservation {
         return assignedResources;
     }
 
+    public ArrayList<ResourceCategory> getRequiredCategories() {
+        return requiredCategories;
+    }
+
+    public State getState() {
+        return state;
+    }
+
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
     //basic setters
     public void setActivity(String Activity) {
         this.activity = Activity;
@@ -69,6 +95,18 @@ public class Reservation {
 
     public void setAssignedResources(ArrayList<Resource> AssignedResources) {
         this.assignedResources = AssignedResources;
+    }
+
+    public void setRequiredCategories(ArrayList<ResourceCategory> requiredCategories) {
+        this.requiredCategories = requiredCategories;
+    }
+
+    public void setState(State state) {
+        this.state = state;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
     }
 
     //logic and calculus methods
