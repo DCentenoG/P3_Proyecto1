@@ -22,7 +22,8 @@ import java.util.List;
  * y un {@link JTabbedPane} cuyo contenido varía según el rol del usuario
  * con el que se ingresó: un {@code Funcionario} ve Reservas,
  * Calendarización, Actividades y Estadísticas; un {@code Administrador}
- * ve además Funcionarios, Categorías y Recursos. Al cambiar de tab, este
+ * ve Funcionarios, Categorías, Recursos y Solicitudes (las reservas
+ * pendientes de revisión) en lugar de Reservas. Al cambiar de tab, este
  * resalta su fondo e ícono tal como se definió en el mockup.
  * <p>
  * Esta clase solo construye la interfaz gráfica; la lógica de negocio y
@@ -70,6 +71,7 @@ public class MainFrame extends JFrame {
             addTab(pane, "Funcionarios", IconLibrary.GROUP, IconLibrary.GROUP_WHITE, new EmployeesView());
             addTab(pane, "Categorías", IconLibrary.CATEGORIES, IconLibrary.CATEGORIES_WHITE, new CategoriesView());
             addTab(pane, "Recursos", IconLibrary.DEVICE, IconLibrary.DEVICE_WHITE, new ResourceSchedulingView());
+            addTab(pane, "Solicitudes", IconLibrary.EXCLAMATION, IconLibrary.EXCLAMATION_WHITE, new RequestsView());
         } else {
             addTab(pane, "Reservas", IconLibrary.LIST, IconLibrary.LIST_WHITE, new ReservationsView());
         }
