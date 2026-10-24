@@ -3,16 +3,23 @@ package Controller;
 import Model.Employee;
 import Model.Reservation;
 import Model.Resource;
+import Model.State;
 import Report.ReportException;
 import Report.ReportService;
 import Report.ReservationReportRow;
 import Service.AIReservationExtractionService;
 import Service.ServiceException;
 import View.EditReservationForm;
+import View.RejectionReasonDialog;
 import View.ReservationsView;
+import View.StateCellRenderer;
 
+import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
+import java.awt.Cursor;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -90,6 +97,59 @@ public final class ReservationsViewListener {
         // un clic en ellos no debe deseleccionarla antes de ejecutarse.
         TableInteractionUtil.deselectOnClickOutside(view.getReservationsTable(),
                 view.getEditButton(), view.getCancelButton());
+        wireRejectedStateLink();
+    }
+
+    /**
+     * El estado "Rechazada" de "Mis reservas" funciona como un hipervínculo
+     * (ver {@link StateCellRenderer}): al pasar el mouse por encima el
+     * cursor cambia a una "mano", y al pulsarlo se abre
+     * {@link RejectionReasonDialog} con el motivo que indicó el administrador.
+     */
+    private void wireRejectedStateLink() {
+        JTable table = view.getReservationsTable();
+        MouseAdapter link = new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                table.setCursor(rejectedReservationAt(e) != null
+                        ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                        : Cursor.getDefaultCursor());
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                table.setCursor(Cursor.getDefaultCursor());
+            }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                Reservation rejected = rejectedReservationAt(e);
+                if (rejected != null) {
+                    showRejectionReason(rejected);
+                }
+            }
+        };
+        table.addMouseListener(link);
+        table.addMouseMotionListener(link);
+    }
+
+    /** La reserva "Rechazada" cuya celda de Estado está bajo el mouse, o {@code null} si no hay ninguna. */
+    private Reservation rejectedReservationAt(MouseEvent e) {
+        JTable table = view.getReservationsTable();
+        int row = table.rowAtPoint(e.getPoint());
+        int column = table.columnAtPoint(e.getPoint());
+        if (row < 0 || column != ReservationsView.STATE_COLUMN || row >= employee.getReservations().size()) {
+            return null;
+        }
+        Object value = table.getValueAt(row, column);
+        return StateCellRenderer.isClickable(value) ? employee.getReservations().get(row) : null;
+    }
+
+    private void showRejectionReason(Reservation reservation) {
+        String summary = reservation.getActivity() + " · " + reservation.getDate().format(DATE_FORMAT) + " · "
+                + reservation.getStartTime().format(TIME_FORMAT) + " - " + reservation.getEndTime().format(TIME_FORMAT);
+        new RejectionReasonDialog(SwingUtilities.getWindowAncestor(view), summary, reservation.getRejectionReason())
+                .setVisible(true);
     }
 
     public void setAfterReservationChange(Runnable callback) {
@@ -141,11 +201,10 @@ public final class ReservationsViewListener {
             return;
         }
 
-        // Armar la reserva (asignar, todo-o-nada, el primer recurso libre de
-        // cada categoría requerida, y guardar el XML) ya no se hace aquí:
-        // vive en Service.ReservationService (ver Model.Employee#tryBook),
-        // así el Controller solo junta los datos del formulario y traduce el
-        // resultado a diálogos, como corresponde en la arquitectura MVC.
+        // Crear la solicitud (validar disponibilidad, dejarla "En revisión" y
+        // guardar el XML) vive en Service.ReservationService (ver
+        // Model.Employee#tryBook): el Controller solo junta los datos del
+        // formulario y traduce el resultado a diálogos, como corresponde en MVC.
         try {
             session.getReservationService().createReservation(employee.getId(), input.activity(), input.date(),
                     input.startTime(), input.endTime(), input.categories());
@@ -154,7 +213,8 @@ public final class ReservationsViewListener {
             return;
         }
 
-        DialogHelper.info(view, "Reservas", "La reserva se guardó correctamente.");
+        DialogHelper.info(view, "Reservas", "La reserva se envió a revisión. Quedará \"En revisión\" "
+                + "hasta que un administrador la apruebe y le asigne los recursos.");
         clearForm();
         renderReservations();
         afterReservationChange.run();
@@ -245,7 +305,9 @@ public final class ReservationsViewListener {
                 model.setValueAt(reservation.getStartTime().format(TIME_FORMAT) + " - "
                         + reservation.getEndTime().format(TIME_FORMAT), row, 3);
                 model.setValueAt(describeResources(reservation), row, 4);
-                model.setValueAt("Confirmada", row, 5);
+                // Se pasa el State (no un texto): la columna lo muestra con el color
+                // de su estado y "Rechazada" como hipervínculo (ver StateCellRenderer).
+                model.setValueAt(reservation.getState(), row, ReservationsView.STATE_COLUMN);
             } else {
                 for (int col = 0; col < model.getColumnCount(); col++) {
                     model.setValueAt(null, row, col);
@@ -254,7 +316,15 @@ public final class ReservationsViewListener {
         }
     }
 
+    /**
+     * Recursos de la reserva. Solo una reserva Aceptada los tiene (los asigna
+     * el administrador al aprobarla); mientras está En revisión se indica que
+     * están por asignar.
+     */
     private String describeResources(Reservation reservation) {
+        if (reservation.getState() == State.IN_REVIEW) {
+            return "Por asignar";
+        }
         List<String> descriptions = new ArrayList<>();
         for (Resource resource : reservation.getAssignedResources()) {
             descriptions.add(resource.getDescription());
@@ -291,7 +361,7 @@ public final class ReservationsViewListener {
             String timeRange = reservation.getStartTime().format(TIME_FORMAT) + " - "
                     + reservation.getEndTime().format(TIME_FORMAT);
             rows.add(new ReservationReportRow(reservation.getActivity(), reservation.getDate().format(DATE_FORMAT),
-                    timeRange, describeResources(reservation), "Confirmada"));
+                    timeRange, describeResources(reservation), reservation.getState().getLabel()));
         }
         return rows;
     }

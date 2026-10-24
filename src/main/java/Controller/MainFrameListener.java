@@ -5,6 +5,7 @@ import View.CRUDView;
 import View.CalendarView;
 import View.EntityType;
 import View.MainFrame;
+import View.RequestsView;
 import View.ReservationsView;
 import View.StatisticsView;
 
@@ -17,8 +18,8 @@ import java.util.List;
  * Orquesta el manejo de eventos de {@link MainFrame}: conecta el
  * {@link TopBarListener} y recorre cada tab ya construido para
  * asignarle el listener correspondiente según el tipo de vista que
- * contiene (Reservas, Calendarización, Actividades, Estadísticas o el
- * CRUD genérico de Funcionarios/Categorías/Recursos).
+ * contiene (Reservas, Solicitudes, Calendarización, Actividades,
+ * Estadísticas o el CRUD genérico de Funcionarios/Categorías/Recursos).
  */
 public final class MainFrameListener {
 
@@ -40,12 +41,15 @@ public final class MainFrameListener {
         CalendarViewListener calendarListener = null;
         ActivitySchedulingViewListener activityListener = null;
         ReservationsViewListener reservationsListener = null;
+        RequestsViewListener requestsListener = null;
         List<CrudViewListener> crudListeners = new ArrayList<>();
 
         for (int i = 0; i < tabs.getTabCount(); i++) {
             Component component = tabs.getComponentAt(i);
             if (component instanceof ReservationsView reservationsView) {
                 reservationsListener = new ReservationsViewListener(reservationsView, session);
+            } else if (component instanceof RequestsView requestsView) {
+                requestsListener = new RequestsViewListener(requestsView, session);
             } else if (component instanceof CalendarView calendarView) {
                 calendarListener = new CalendarViewListener(calendarView, session);
             } else if (component instanceof ActivitySchedulingView activityView) {
@@ -120,6 +124,22 @@ public final class MainFrameListener {
                 }
                 if (finalActivityListener != null) {
                     finalActivityListener.refresh();
+                }
+            });
+        }
+
+        // Aprobar o rechazar una solicitud cambia qué reservas se muestran de
+        // forma global (solo las Aceptadas): Calendarización y Actividades se
+        // refrescan de inmediato, igual que con un cambio en "Reservas".
+        if (requestsListener != null && (calendarListener != null || activityListener != null)) {
+            CalendarViewListener finalCalendarListenerForRequests = calendarListener;
+            ActivitySchedulingViewListener finalActivityListenerForRequests = activityListener;
+            requestsListener.setAfterReview(() -> {
+                if (finalCalendarListenerForRequests != null) {
+                    finalCalendarListenerForRequests.refresh();
+                }
+                if (finalActivityListenerForRequests != null) {
+                    finalActivityListenerForRequests.refresh();
                 }
             });
         }

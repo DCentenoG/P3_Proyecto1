@@ -160,6 +160,10 @@ public final class ActivitySchedulingViewListener {
         cellIndex.clear();
         for (Employee employee : session.getUsers().getListOfEmployees()) {
             for (Reservation reservation : employee.getReservations()) {
+                // Solo las reservas Aceptadas se muestran de forma global en el sistema.
+                if (!reservation.isAccepted()) {
+                    continue;
+                }
                 LocalDate date = reservation.getDate();
                 if (date.isBefore(monday) || date.isAfter(friday)) {
                     continue;

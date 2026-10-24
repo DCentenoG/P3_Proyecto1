@@ -86,7 +86,8 @@ public final class EditReservationFormListener {
         if (input == null) {
             return;
         }
-        if (!DialogHelper.confirm(form, "¿Desea guardar los cambios de esta reserva?")) {
+        if (!DialogHelper.confirm(form, "¿Desea guardar los cambios? La reserva volverá a quedar \"En revisión\" "
+                + "y deberá ser aprobada de nuevo.")) {
             return;
         }
 
@@ -102,7 +103,8 @@ public final class EditReservationFormListener {
             return;
         }
 
-        DialogHelper.info(form, "Editar reserva", "Los cambios de la reserva se guardaron correctamente.");
+        DialogHelper.info(form, "Editar reserva", "Los cambios se guardaron. La reserva volvió a quedar "
+                + "\"En revisión\" hasta que un administrador la apruebe de nuevo.");
         form.dispose();
         afterSave.run();
     }

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="solicitudes" pageWidth="595" pageHeight="842" columnWidth="535"
+              leftMargin="30" rightMargin="30" topMargin="20" bottomMargin="20">
+
+    <field name="employeeId" class="java.lang.String"/>
+    <field name="employeeName" class="java.lang.String"/>
+    <field name="activity" class="java.lang.String"/>
+    <field name="date" class="java.lang.String"/>
+    <field name="timeRange" class="java.lang.String"/>
+    <field name="categories" class="java.lang.String"/>
+
+    <title>
+        <band height="65">
+            <staticText>
+                <reportElement x="0" y="0" width="535" height="30"/>
+                <textElement>
+                    <font size="18" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Solicitudes de Reserva Pendientes]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="0" y="30" width="400" height="15"/>
+                <textElement>
+                    <font size="10"/>
+                </textElement>
+                <text><![CDATA[Reservas en estado "En revisión"]]></text>
+            </staticText>
+            <textField pattern="dd/MM/yyyy HH:mm">
+                <reportElement x="0" y="47" width="535" height="15"/>
+                <textElement textAlignment="Right">
+                    <font size="8" isItalic="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="20">
+            <staticText>
+                <reportElement x="0" y="0" width="50" height="20"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[ID]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="50" y="0" width="120" height="20"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Funcionario]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="170" y="0" width="120" height="20"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Actividad]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="290" y="0" width="65" height="20"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Fecha]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="355" y="0" width="75" height="20"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Horario]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="430" y="0" width="105" height="20"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Categorías]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="18">
+            <textField>
+                <reportElement x="0" y="0" width="50" height="18"/>
+                <textFieldExpression><![CDATA[$F{employeeId}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="50" y="0" width="120" height="18"/>
+                <textFieldExpression><![CDATA[$F{employeeName}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="170" y="0" width="120" height="18"/>
+                <textFieldExpression><![CDATA[$F{activity}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="290" y="0" width="65" height="18"/>
+                <textFieldExpression><![CDATA[$F{date}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="355" y="0" width="75" height="18"/>
+                <textFieldExpression><![CDATA[$F{timeRange}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="430" y="0" width="105" height="18"/>
+                <textFieldExpression><![CDATA[$F{categories}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="20">
+            <textField>
+                <reportElement x="450" y="0" width="85" height="15"/>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Página " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <noData>
+        <band height="30">
+            <staticText>
+                <reportElement x="0" y="0" width="535" height="20"/>
+                <textElement><font isItalic="true"/></textElement>
+                <text><![CDATA[No hay solicitudes pendientes de revisión.]]></text>
+            </staticText>
+        </band>
+    </noData>
+</jasperReport>

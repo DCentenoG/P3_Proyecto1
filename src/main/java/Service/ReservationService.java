@@ -117,6 +117,13 @@ public class ReservationService {
         if (reservation == null) {
             throw new ServiceException("Debe indicar la reserva que desea cancelar.");
         }
+        // Primero las reglas del estado (p. ej. una Rechazada nunca se cancela), para
+        // que el mensaje explique el motivo real; luego la regla de la fecha.
+        try {
+            reservation.ensureCancellable();
+        } catch (InvalidReservationOperationException e) {
+            throw new ServiceException(e.getMessage(), e);
+        }
         if (reservation.getDate().isBefore(LocalDate.now())) {
             throw new ServiceException("No es posible cancelar una reserva que ya paso.");
         }

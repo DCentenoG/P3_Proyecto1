@@ -188,14 +188,19 @@ public class Reservation {
     reserva Rechazada no se puede cancelar (no tiene sentido), ni una ya Cancelada.
     */
     public void cancel() throws InvalidReservationOperationException {
+        ensureCancellable();
+        state = State.CANCELLED;
+        assignedResources.clear();
+    }
+
+    /* Verifica, sin cambiar nada, que la reserva se pueda cancelar en su estado actual. */
+    public void ensureCancellable() throws InvalidReservationOperationException {
         if (state == State.REJECTED) {
             throw new InvalidReservationOperationException("No es posible cancelar una reserva rechazada.");
         }
         if (state == State.CANCELLED) {
             throw new InvalidReservationOperationException("La reserva ya se encuentra cancelada.");
         }
-        state = State.CANCELLED;
-        assignedResources.clear();
     }
 
     /*
