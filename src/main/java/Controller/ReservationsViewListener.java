@@ -3,27 +3,17 @@ package Controller;
 import Model.Employee;
 import Model.Reservation;
 import Model.Resource;
-import Model.ResourceCategory;
 import Report.ReportException;
 import Report.ReportService;
 import Report.ReservationReportRow;
-import Service.AIExtractionException;
 import Service.AIReservationExtractionService;
-import Service.ExtractedReservationData;
 import Service.ServiceException;
-import View.DatePickerDialog;
+import View.EditReservationForm;
 import View.ReservationsView;
-import View.TimePickerDialog;
 
-import javax.swing.JComboBox;
 import javax.swing.SwingUtilities;
-import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
-import java.awt.Cursor;
-import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,17 +23,20 @@ import java.util.Map;
  * Maneja los eventos de {@link ReservationsView}: el botón de ayuda "?"
  * (explica el llenado por IA), el llenado automático por IA a partir de
  * la "Frase" (ver {@link AIReservationExtractionService}), y las
- * acciones de Guardar, Cancelar y Limpiar de la sección "Nueva reserva".
+ * acciones de Guardar, Editar, Cancelar y Limpiar de la sección "Nueva
+ * reserva". Los selectores, la minitabla de categorías y la validación
+ * del formulario se comparten con "Editar reserva" (ver
+ * {@link ReservationFormSupport}).
  * <p>
  * Reglas pedidas: no se puede guardar una reserva con campos vacíos
- * (excepto "Frase"); no se puede cancelar una reserva sin haberla
- * seleccionado en la tabla; y tanto Guardar como Cancelar piden
+ * (excepto "Frase"); no se puede editar ni cancelar una reserva sin
+ * haberla seleccionado en la tabla; y Guardar y Cancelar piden
  * confirmación antes de ejecutarse.
  */
 public final class ReservationsViewListener {
 
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter DATE_FORMAT = ReservationFormSupport.DATE_FORMAT;
+    private static final DateTimeFormatter TIME_FORMAT = ReservationFormSupport.TIME_FORMAT;
 
     private static final String HELP_MESSAGE =
             "Interpreta la \"Frase\" escrita y completa el resto del formulario. "
@@ -81,15 +74,22 @@ public final class ReservationsViewListener {
                 DialogHelper.info(view, "Generación automática de reservas", HELP_MESSAGE));
         view.getAiButton().addActionListener(e -> onAiFill());
         view.getSaveButton().addActionListener(e -> onSave());
+        view.getEditButton().addActionListener(e -> onEditReservation());
         view.getCancelButton().addActionListener(e -> onCancelReservation());
         view.getClearButton().addActionListener(e -> clearForm());
         view.getPrintButton().addActionListener(e -> onPrint());
         view.getAddCategoryButton().addActionListener(e -> onAddCategory());
         view.getRemoveCategoryButton().addActionListener(e -> onRemoveCategory());
-        view.getDateDropdownButton().addActionListener(e -> onPickDate());
-        view.getStartTimeButton().addActionListener(e -> onPickStartTime());
-        view.getEndTimeButton().addActionListener(e -> onPickEndTime());
-        TableInteractionUtil.deselectOnClickOutside(view.getReservationsTable(), view.getCancelButton());
+        view.getDateDropdownButton().addActionListener(e ->
+                ReservationFormSupport.pickDate(view, view.getDateField()));
+        view.getStartTimeButton().addActionListener(e ->
+                ReservationFormSupport.pickStartTime(view, view.getStartTimeField(), view.getEndTimeField()));
+        view.getEndTimeButton().addActionListener(e ->
+                ReservationFormSupport.pickEndTime(view, view.getStartTimeField(), view.getEndTimeField()));
+        // "Editar reserva" y "Cancelar reserva" operan sobre la fila seleccionada:
+        // un clic en ellos no debe deseleccionarla antes de ejecutarse.
+        TableInteractionUtil.deselectOnClickOutside(view.getReservationsTable(),
+                view.getEditButton(), view.getCancelButton());
     }
 
     public void setAfterReservationChange(Runnable callback) {
@@ -97,176 +97,31 @@ public final class ReservationsViewListener {
     }
 
     // ------------------------------------------------------------------
-    // Selectores de fecha/hora
+    // Categorías requeridas (selectores de fecha/hora: ver wire())
     // ------------------------------------------------------------------
 
-    private void onPickDate() {
-        LocalDate initial = parseDateOrNull(view.getDateField().getText());
-        // Una reserva no se puede hacer en una fecha que ya pasó (regla que
-        // ahora también aplica Service.ReservationService.createReservation):
-        // se previene directamente en el selector, en vez de dejar elegirla y
-        // recién avisar después de intentar guardar.
-        LocalDate picked = DatePickerDialog.show(SwingUtilities.getWindowAncestor(view), initial, LocalDate.now(), null);
-        if (picked != null) {
-            view.getDateField().setText(picked.format(DATE_FORMAT));
-        }
-    }
-
-    private void onPickStartTime() {
-        LocalTime initial = parseTimeOrNull(view.getStartTimeField().getText());
-        // La hora de inicio no puede quedar después de la hora de fin ya elegida (si existe).
-        LocalTime max = parseTimeOrNull(view.getEndTimeField().getText());
-        LocalTime picked = TimePickerDialog.show(SwingUtilities.getWindowAncestor(view), initial, null, max);
-        if (picked != null) {
-            view.getStartTimeField().setText(picked.format(TIME_FORMAT));
-        }
-    }
-
-    private void onPickEndTime() {
-        LocalTime initial = parseTimeOrNull(view.getEndTimeField().getText());
-        // La hora de fin no puede quedar antes de la hora de inicio ya elegida (si existe).
-        LocalTime min = parseTimeOrNull(view.getStartTimeField().getText());
-        LocalTime picked = TimePickerDialog.show(SwingUtilities.getWindowAncestor(view), initial, min, null);
-        if (picked != null) {
-            view.getEndTimeField().setText(picked.format(TIME_FORMAT));
-        }
-    }
-
-    private static LocalDate parseDateOrNull(String text) {
-        try {
-            return LocalDate.parse(text.trim(), DATE_FORMAT);
-        } catch (DateTimeParseException | NullPointerException ex) {
-            return null;
-        }
-    }
-
-    private static LocalTime parseTimeOrNull(String text) {
-        try {
-            return LocalTime.parse(text.trim(), TIME_FORMAT);
-        } catch (DateTimeParseException | NullPointerException ex) {
-            return null;
-        }
-    }
-
     private void loadCategoryOptions() {
-        JComboBox<String> combo = view.getCategoryCombo();
-        combo.removeAllItems();
-        for (ResourceCategory category : session.getCategories().getCategories()) {
-            combo.addItem(category.getDescription());
-        }
+        ReservationFormSupport.loadCategoryOptions(view.getCategoryCombo(), session.getCategories().getCategories());
     }
 
     private void onAddCategory() {
-        Object selected = view.getCategoryCombo().getSelectedItem();
-        if (selected == null) {
-            return;
-        }
-        String category = selected.toString();
-        DefaultTableModel model = (DefaultTableModel) view.getCategoriesTable().getModel();
-        for (int row = 0; row < model.getRowCount(); row++) {
-            if (category.equals(model.getValueAt(row, 0))) {
-                return; // ya está en la lista, no se duplica
-            }
-        }
-        model.addRow(new Object[]{category});
+        ReservationFormSupport.addSelectedCategory(view.getCategoryCombo(), view.getCategoriesTable());
     }
 
     private void onRemoveCategory() {
-        int row = view.getCategoriesTable().getSelectedRow();
-        if (row < 0) {
-            DialogHelper.warn(view, "Debe seleccionar una categoría de la lista para quitarla.");
-            return;
-        }
-        ((DefaultTableModel) view.getCategoriesTable().getModel()).removeRow(row);
+        ReservationFormSupport.removeSelectedCategory(view, view.getCategoriesTable());
     }
 
     // ------------------------------------------------------------------
     // Llenado automático por IA (a partir de la "Frase")
     // ------------------------------------------------------------------
 
-    /**
-     * Envía la "Frase" a {@link AIReservationExtractionService} en un hilo
-     * aparte (la llamada de red toma 1-3s) y, con lo que devuelva, precarga
-     * el resto del formulario. Nunca bloquea el flujo normal: ante
-     * cualquier falla (sin red, clave ausente, bloqueo de seguridad, XML
-     * mal formado) solo avisa y deja el formulario para llenado manual.
-     */
+    /** El llenado en sí (hilo aparte, avisos, normalización de categorías) está en {@link ReservationFormSupport}. */
     private void onAiFill() {
-        String phrase = view.getPhraseField().getText().trim();
-        if (phrase.isEmpty()) {
-            DialogHelper.warn(view, "Escriba una frase en el campo \"Frase\" antes de generar la reserva.");
-            return;
-        }
-
-        view.getAiButton().setEnabled(false);
-        Cursor previousCursor = view.getCursor();
-        view.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-
-        new SwingWorker<ExtractedReservationData, Void>() {
-            @Override
-            protected ExtractedReservationData doInBackground() throws AIExtractionException {
-                return aiExtractionService.extractFromPhrase(phrase);
-            }
-
-            @Override
-            protected void done() {
-                view.setCursor(previousCursor);
-                view.getAiButton().setEnabled(true);
-                try {
-                    applyExtractedData(get());
-                } catch (Exception ex) {
-                    Throwable cause = (ex.getCause() != null) ? ex.getCause() : ex;
-                    DialogHelper.warn(view, "No se pudo interpretar la frase (" + cause.getMessage()
-                            + "). Complete los campos manualmente.");
-                }
-            }
-        }.execute();
-    }
-
-    /** Precarga el formulario con lo que la IA logró extraer; el usuario puede revisar/editar antes de guardar. */
-    private void applyExtractedData(ExtractedReservationData data) {
-        if (data.getActivity() != null) {
-            view.getActivityField().setText(data.getActivity());
-        }
-        if (data.getDate() != null) {
-            view.getDateField().setText(data.getDate().format(DATE_FORMAT));
-        }
-        if (data.getStartTime() != null) {
-            view.getStartTimeField().setText(data.getStartTime().format(TIME_FORMAT));
-        }
-        if (data.getEndTime() != null) {
-            view.getEndTimeField().setText(data.getEndTime().format(TIME_FORMAT));
-        }
-
-        DefaultTableModel model = (DefaultTableModel) view.getCategoriesTable().getModel();
-        model.setRowCount(0);
-        for (String category : data.getCategoryDescriptions()) {
-            model.addRow(new Object[]{normalizeCategoryDescription(category)});
-        }
-
-        if (data.isEmpty()) {
-            DialogHelper.info(view, "Generación automática",
-                    "No se pudo identificar ningún dato en esa frase. Complete el formulario manualmente.");
-        }
-    }
-
-    /**
-     * Si lo que extrajo la IA coincide (sin importar mayúsculas/minúsculas)
-     * con una categoría real del sistema, se usa el texto exacto de esa
-     * categoría, para que quede reconocida al guardar sin que el usuario
-     * tenga que corregir un simple cambio de mayúsculas. Si no coincide con
-     * ninguna, se deja tal cual la extrajo la IA: el usuario la revisa y,
-     * si hace falta, la reemplaza usando el combo de categorías — esta
-     * clase no valida existencia ni disponibilidad, eso sigue en
-     * ReservationService.
-     */
-    private String normalizeCategoryDescription(String extracted) {
-        for (ResourceCategory category : session.getCategories().getCategories()) {
-            if (category.getDescription().equalsIgnoreCase(extracted)) {
-                return category.getDescription();
-            }
-        }
-        return extracted;
+        ReservationFormSupport.fillFromPhrase(view, aiExtractionService, view.getPhraseField(), view.getAiButton(),
+                new ReservationFormSupport.FormFields(view.getActivityField(), view.getDateField(),
+                        view.getStartTimeField(), view.getEndTimeField(), view.getCategoriesTable()),
+                session.getCategories().getCategories());
     }
 
     // ------------------------------------------------------------------
@@ -274,36 +129,11 @@ public final class ReservationsViewListener {
     // ------------------------------------------------------------------
 
     private void onSave() {
-        String activity = view.getActivityField().getText().trim();
-        String dateText = view.getDateField().getText().trim();
-        String startText = view.getStartTimeField().getText().trim();
-        String endText = view.getEndTimeField().getText().trim();
-        List<String> selectedCategories = view.getSelectedCategories();
-
-        if (activity.isEmpty() || dateText.isEmpty() || startText.isEmpty() || endText.isEmpty()
-                || selectedCategories.isEmpty()) {
-            DialogHelper.warn(view, "Debe completar todos los campos marcados con * antes de guardar la reserva.");
-            return;
-        }
-
-        LocalDate date;
-        LocalTime startTime;
-        LocalTime endTime;
-        try {
-            date = LocalDate.parse(dateText, DATE_FORMAT);
-        } catch (DateTimeParseException ex) {
-            DialogHelper.warn(view, "La fecha debe tener el formato dd/mm/aaaa.");
-            return;
-        }
-        try {
-            startTime = LocalTime.parse(startText, TIME_FORMAT);
-            endTime = LocalTime.parse(endText, TIME_FORMAT);
-        } catch (DateTimeParseException ex) {
-            DialogHelper.warn(view, "Las horas deben tener el formato hh:mm (24 horas).");
-            return;
-        }
-        if (!endTime.isAfter(startTime)) {
-            DialogHelper.warn(view, "La hora de fin debe ser posterior a la hora de inicio.");
+        ReservationFormSupport.ReservationInput input = ReservationFormSupport.readAndValidate(view,
+                view.getActivityField().getText(), view.getDateField().getText(),
+                view.getStartTimeField().getText(), view.getEndTimeField().getText(),
+                view.getSelectedCategories());
+        if (input == null) {
             return;
         }
 
@@ -317,8 +147,8 @@ public final class ReservationsViewListener {
         // así el Controller solo junta los datos del formulario y traduce el
         // resultado a diálogos, como corresponde en la arquitectura MVC.
         try {
-            session.getReservationService().createReservation(employee.getId(), activity, date, startTime, endTime,
-                    selectedCategories);
+            session.getReservationService().createReservation(employee.getId(), input.activity(), input.date(),
+                    input.startTime(), input.endTime(), input.categories());
         } catch (ServiceException ex) {
             DialogHelper.error(view, ex.getMessage());
             return;
@@ -331,10 +161,34 @@ public final class ReservationsViewListener {
     }
 
     // ------------------------------------------------------------------
+    // Editar reserva
+    // ------------------------------------------------------------------
+
+    /**
+     * Abre {@link EditReservationForm} con los datos de la reserva
+     * seleccionada en "Mis reservas". Igual que "Cancelar reserva", no se
+     * puede editar sin haber seleccionado antes una reserva de la tabla.
+     */
+    private void onEditReservation() {
+        int row = view.getReservationsTable().getSelectedRow();
+        if (row < 0 || row >= employee.getReservations().size()) {
+            DialogHelper.warn(view, "Debe seleccionar una reserva de la tabla para poder editarla.");
+            return;
+        }
+
+        Reservation toEdit = employee.getReservations().get(row);
+        EditReservationForm form = new EditReservationForm(SwingUtilities.getWindowAncestor(view));
+        new EditReservationFormListener(form, session, toEdit, () -> {
+            renderReservations();
+            afterReservationChange.run();
+        });
+        form.setVisible(true);
+    }
+
+    // ------------------------------------------------------------------
     // Cancelar reserva
     // ------------------------------------------------------------------
 
-    // DESPUÉS
     private void onCancelReservation() {
         int row = view.getReservationsTable().getSelectedRow();
         if (row < 0 || row >= employee.getReservations().size()) {

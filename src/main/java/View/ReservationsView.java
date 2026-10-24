@@ -51,6 +51,7 @@ public class ReservationsView extends JPanel {
     private JTable categoriesTable;
 
     private JButton saveButton;
+    private JButton editButton;
     private JButton cancelButton;
     private JButton clearButton;
 
@@ -264,12 +265,17 @@ public class ReservationsView extends JPanel {
         column.add(javax.swing.Box.createGlue(), gbc);
 
         saveButton = UITheme.createStackedIconButton("Guardar reserva", IconLibrary.DISKETTE, 26);
+        // "Editar reserva" opera sobre la fila seleccionada en "Mis reservas"
+        // (igual que "Cancelar reserva"): abre EditReservationForm con los
+        // datos de esa reserva ya cargados.
+        editButton = UITheme.createStackedIconButton("Editar reserva", IconLibrary.PENCIL, 26);
         cancelButton = UITheme.createStackedIconButton("Cancelar reserva", IconLibrary.REMOVE, 26);
         clearButton = UITheme.createStackedIconButton("Limpiar", IconLibrary.ERASER, 26);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 0));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
         actions.setOpaque(false);
         actions.add(saveButton);
+        actions.add(editButton);
         actions.add(cancelButton);
         actions.add(clearButton);
 
@@ -412,6 +418,8 @@ public class ReservationsView extends JPanel {
     }
 
     public JButton getSaveButton() { return saveButton; }
+    /** Abre la edición de la reserva seleccionada en "Mis reservas". */
+    public JButton getEditButton() { return editButton; }
     public JButton getCancelButton() { return cancelButton; }
     public JButton getClearButton() { return clearButton; }
     public JTable getReservationsTable() { return reservationsTable; }

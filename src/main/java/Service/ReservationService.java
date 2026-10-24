@@ -6,6 +6,7 @@ import Model.Resource;
 import Model.ResourceCategory;
 import Model.exceptions.CategoryNotFoundException;
 import Model.exceptions.EmployeeNotFoundException;
+import Model.exceptions.ReservationNotFoundException;
 import Model.exceptions.ResourceUnavailableException;
 
 import java.time.LocalDate;
@@ -49,21 +50,7 @@ public class ReservationService {
         Employee employee = requireEmployee(employeeId);
         validateReservationData(activity, date, startTime, endTime, requiredCategoryDescriptions);
 
-        List<ResourceCategory> categories = new ArrayList<>();
-        List<String> unresolvedCategories = new ArrayList<>();
-        for (String description : requiredCategoryDescriptions) {
-            try {
-                ResourceCategory category = service.getCategories().getCategorybyDescription(description);
-                categories.add(category);
-            } catch (CategoryNotFoundException e) {
-                unresolvedCategories.add(description);
-            }
-        }
-
-        if (!unresolvedCategories.isEmpty()) {
-            throw new ServiceException("No existe(n) la(s) siguiente(s) categoria(s): "
-                    + String.join(", ", unresolvedCategories));
-        }
+        List<ResourceCategory> categories = resolveCategories(requiredCategoryDescriptions);
 
         List<String> unavailableCategories = new ArrayList<>();
         try {
@@ -84,6 +71,41 @@ public class ReservationService {
         Reservation reservation = employee.getReservations().get(employee.getReservations().size() - 1);
         service.save();
         return reservation;
+    }
+
+    /*
+    Edita una reserva existente del funcionario. Aplica las mismas validaciones
+    que createReservation (campos obligatorios, fecha no pasada, horario valido,
+    categorias existentes) y vuelve a asignar, para cada categoria requerida, el
+    primer recurso libre en el nuevo horario. Al revisar disponibilidad se ignora
+    la propia reserva que se esta editando, asi que puede conservar su horario y
+    sus recursos actuales si siguen libres.
+
+    Es "todo o nada": si alguna categoria no tiene disponibilidad, la reserva
+    queda exactamente como estaba y se informa cuales categorias fallaron.
+    */
+    public void editReservation(int employeeId, Reservation reservation, String activity, LocalDate date,
+                                LocalTime startTime, LocalTime endTime,
+                                List<String> requiredCategoryDescriptions) throws ServiceException {
+
+        Employee employee = requireEmployee(employeeId);
+        if (reservation == null) {
+            throw new ServiceException("Debe indicar la reserva que desea editar.");
+        }
+        validateReservationData(activity, date, startTime, endTime, requiredCategoryDescriptions);
+
+        List<ResourceCategory> categories = resolveCategories(requiredCategoryDescriptions);
+
+        try {
+            employee.tryEdit(reservation, activity.trim(), date, startTime, endTime, categories, service.getUsers());
+        } catch (ReservationNotFoundException e) {
+            throw new ServiceException(e.getMessage(), e);
+        } catch (ResourceUnavailableException e) {
+            throw new ServiceException("No hay disponibilidad para la(s) siguiente(s) categoria(s) en ese horario: "
+                    + String.join(", ", e.getUnavailableCategories()), e);
+        }
+
+        service.save();
     }
 
     public void cancelReservation(int employeeId, Reservation reservation) throws ServiceException {
@@ -123,6 +145,28 @@ public class ReservationService {
         if (requiredCategories == null || requiredCategories.isEmpty()) {
             throw new ServiceException("Debe seleccionar al menos una categoria de recurso requerida.");
         }
+    }
+
+    /*
+    Traduce las descripciones elegidas en el formulario a las categorias reales
+    del sistema. Si alguna no existe, se informan todas las que fallaron juntas.
+    */
+    private List<ResourceCategory> resolveCategories(List<String> descriptions) throws ServiceException {
+        List<ResourceCategory> categories = new ArrayList<>();
+        List<String> unresolvedCategories = new ArrayList<>();
+        for (String description : descriptions) {
+            try {
+                categories.add(service.getCategories().getCategorybyDescription(description));
+            } catch (CategoryNotFoundException e) {
+                unresolvedCategories.add(description);
+            }
+        }
+
+        if (!unresolvedCategories.isEmpty()) {
+            throw new ServiceException("No existe(n) la(s) siguiente(s) categoria(s): "
+                    + String.join(", ", unresolvedCategories));
+        }
+        return categories;
     }
 
     private Employee requireEmployee(int employeeId) throws ServiceException {
