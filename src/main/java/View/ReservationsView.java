@@ -61,6 +61,9 @@ public class ReservationsView extends JPanel {
 
     private static final String NO_RESERVATIONS_MESSAGE = "No tiene reservas registradas.";
 
+    /** Índice de la columna "Estado" en la tabla de "Mis reservas". */
+    public static final int STATE_COLUMN = 5;
+
     public ReservationsView() {
         super(new BorderLayout());
         setBackground(UITheme.BACKGROUND);
@@ -307,6 +310,10 @@ public class ReservationsView extends JPanel {
         };
         reservationsTable = new JTable(model);
         UITheme.styleTable(reservationsTable);
+        // "Estado" se muestra con el texto en el color de su estado (ver
+        // StateCellRenderer); "Rechazada" se ve como un hipervínculo que se puede
+        // pulsar para ver el motivo del rechazo.
+        reservationsTable.getColumnModel().getColumn(STATE_COLUMN).setCellRenderer(new StateCellRenderer());
 
         JScrollPane tableScroll = new JScrollPane(reservationsTable);
         UITheme.styleScrollPane(tableScroll);
