@@ -105,6 +105,10 @@ public final class StatisticsViewListener {
         Map<String, Integer> counts = new TreeMap<>();
         for (Employee employee : session.getUsers().getListOfEmployees()) {
             for (Reservation reservation : employee.getReservations()) {
+                // Las estadísticas solo cuentan las reservas Aceptadas (las que se muestran de forma global).
+                if (!reservation.isAccepted()) {
+                    continue;
+                }
                 LocalDate date = reservation.getDate();
                 if (date.isBefore(start) || date.isAfter(end)) {
                     continue;

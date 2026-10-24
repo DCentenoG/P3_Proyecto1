@@ -207,7 +207,8 @@ public final class CalendarViewListener {
         cellIndex.clear();
         for (Employee employee : session.getUsers().getListOfEmployees()) {
             for (Reservation reservation : employee.getReservations()) {
-                if (!reservation.getDate().equals(date)) {
+                // Solo las reservas Aceptadas ocupan recursos y se muestran en la calendarización.
+                if (!reservation.isAccepted() || !reservation.getDate().equals(date)) {
                     continue;
                 }
                 for (Resource resource : reservation.getAssignedResources()) {

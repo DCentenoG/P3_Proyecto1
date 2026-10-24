@@ -6,6 +6,7 @@ import Model.Employee;
 import Model.Reservation;
 import Model.Resource;
 import Model.ResourceCategory;
+import Model.State;
 import Model.User;
 import Model.UserContainer;
 import Model.exceptions.DuplicateResourceException;
@@ -45,7 +46,9 @@ Estructura del XML generado:
         <user type="ADMIN" id="1" password="admin"/>
         <user type="EMPLOYEE" id="2" password="2" name="Juan Perez" phoneNumber="88881111">
             <reservations>
-                <reservation activity="Reunion" date="2026-09-20" startTime="09:00" endTime="10:00">
+                <reservation activity="Reunion" date="2026-09-20" startTime="09:00" endTime="10:00"
+                             state="IN_REVIEW">
+                    <requiredCategory categoryId="CAT-000001"/>
                     <assignedResource categoryId="CAT-000001" resourceId="1"/>
                 </reservation>
             </reservations>
@@ -59,6 +62,14 @@ recurso real: ese recurso debe existir ya en el CategoryContainer para poder
 enlazarlo de vuelta a la misma instancia usada por las categorias (necesario
 para que la logica de disponibilidad de Reservation.addResource siga
 funcionando igual que con datos recien creados en memoria).
+
+Cada reserva guarda ademas su estado de revision ("state", el nombre de la
+constante de Model.State), las categorias que pidio el funcionario
+(<requiredCategory>) y, si fue rechazada, el motivo ("rejectionReason").
+Compatibilidad con archivos anteriores a este flujo: una reserva sin "state"
+se carga "En revision" (IN_REVIEW), y una sin <requiredCategory> toma como
+categorias requeridas las de sus recursos asignados. Solo las reservas
+Aceptadas conservan <assignedResource> (ver Reservation.isAccepted).
 */
 public class SystemXmlRepository {
 
@@ -205,6 +216,18 @@ public class SystemXmlRepository {
 
             Reservation reservation = new Reservation(activity, date, startTime, endTime);
             reservation.setAssignedResources(loadAssignedResources(reservationEl, categories));
+            reservation.setRequiredCategories(loadRequiredCategories(reservationEl, categories,
+                    reservation.getAssignedResources()));
+            reservation.setState(parseState(reservationEl.getAttribute("state")));
+            if (reservationEl.hasAttribute("rejectionReason")) {
+                reservation.setRejectionReason(reservationEl.getAttribute("rejectionReason"));
+            }
+            //Solo una reserva Aceptada tiene recursos asignados (los elige el administrador al
+            //aprobarla). Una reserva de un archivo anterior cargada "En revision" conserva sus
+            //categorias requeridas (deducidas arriba de esos recursos), pero no los recursos.
+            if (!reservation.isAccepted()) {
+                reservation.getAssignedResources().clear();
+            }
 
             reservations.add(reservation);
         }
@@ -237,6 +260,49 @@ public class SystemXmlRepository {
             }
         }
         return assigned;
+    }
+
+    /*
+    Lee las categorias requeridas de la reserva. Si el archivo es de una version
+    anterior (sin <requiredCategory>), se deducen de las categorias de los
+    recursos asignados, sin repetir. Una categoria que ya no existe se omite: una
+    solicitud puede seguir referenciando una categoria vacia que luego se borro.
+    */
+    private ArrayList<ResourceCategory> loadRequiredCategories(Element reservationEl, CategoryContainer categories,
+                                                               List<Resource> assignedResources) {
+        ArrayList<ResourceCategory> required = new ArrayList<>();
+
+        NodeList requiredXml = reservationEl.getElementsByTagName("requiredCategory");
+        if (requiredXml.getLength() == 0) {
+            for (Resource resource : assignedResources) {
+                ResourceCategory category = resource.getResourceCategoryReference();
+                if (!required.contains(category)) {
+                    required.add(category);
+                }
+            }
+            return required;
+        }
+
+        for (int i = 0; i < requiredXml.getLength(); i++) {
+            Element requiredEl = (Element) requiredXml.item(i);
+            ResourceCategory category = findCategoryById(categories, requiredEl.getAttribute("categoryId"));
+            if (category != null && !required.contains(category)) {
+                required.add(category);
+            }
+        }
+        return required;
+    }
+
+    /* Estado guardado en el XML; si falta (archivo anterior) o no es valido, la reserva queda "En revision". */
+    private State parseState(String value) {
+        if (value == null || value.isBlank()) {
+            return State.IN_REVIEW;
+        }
+        try {
+            return State.valueOf(value.trim());
+        } catch (IllegalArgumentException e) {
+            return State.IN_REVIEW;
+        }
     }
 
     private ResourceCategory findCategoryById(CategoryContainer categories, String id) {
@@ -304,6 +370,16 @@ public class SystemXmlRepository {
             reservationEl.setAttribute("date", reservation.getDate().toString());
             reservationEl.setAttribute("startTime", reservation.getStartTime().toString());
             reservationEl.setAttribute("endTime", reservation.getEndTime().toString());
+            reservationEl.setAttribute("state", reservation.getState().name());
+            if (reservation.getRejectionReason() != null) {
+                reservationEl.setAttribute("rejectionReason", reservation.getRejectionReason());
+            }
+
+            for (ResourceCategory category : reservation.getRequiredCategories()) {
+                Element requiredEl = doc.createElement("requiredCategory");
+                requiredEl.setAttribute("categoryId", category.getId());
+                reservationEl.appendChild(requiredEl);
+            }
 
             for (Resource resource : reservation.getAssignedResources()) {
                 Element resourceEl = doc.createElement("assignedResource");

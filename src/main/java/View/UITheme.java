@@ -42,6 +42,12 @@ public final class UITheme {
     public static final Color CALENDAR_EVENT = Color.decode("#7DC4F4");
     public static final Color STATS_PANEL = Color.decode("#C3CBE3");
 
+    // ---- Color del texto del estado de una reserva (paleta actualizada del mockup) ----
+    public static final Color STATE_ACCEPTED = ADD_GREEN;              // "Aceptada"
+    public static final Color STATE_REJECTED = DANGER_RED;             // "Rechazada"
+    public static final Color STATE_IN_REVIEW = Color.decode("#F7AF29"); // "En revisión"
+    public static final Color STATE_CANCELLED = Color.decode("#7A7575"); // "Cancelada"
+
     public static final Color WHITE = Color.WHITE;
     public static final Color FIELD_BORDER = new Color(203, 213, 225);
     public static final Color TABLE_GRID = new Color(226, 232, 240);
@@ -337,6 +343,16 @@ public final class UITheme {
      */
     public static JButton createEditButton() {
         return new RoundedActionButton("Editar", IconLibrary.PENCIL_WHITE, ACCENT_BLUE);
+    }
+
+    /**
+     * Botón "Revisar" independiente (rectángulo azul de esquinas
+     * redondeadas con el ícono de ojo y el texto en blanco), usado bajo el
+     * listado de {@link RequestsView} para abrir la revisión de la
+     * solicitud seleccionada en la tabla.
+     */
+    public static JButton createReviewButton() {
+        return new RoundedActionButton("Revisar", IconLibrary.EYE_WHITE, ACCENT_BLUE);
     }
 
     /**

@@ -35,12 +35,16 @@ public final class IconLibrary {
     public static final String CATEGORIES = "categories.png";
     public static final String CATEGORIES_WHITE = "categoriesW.png";
     public static final String CHECKED = "checked.png";
+    public static final String CHECKED_GREEN = "checkedG.png";
     public static final String CLIPBOARD = "clipboard.png";
     public static final String CLIPBOARD_WHITE = "clipboardW.png";
     public static final String DEVICE = "device.png";
     public static final String DEVICE_WHITE = "deviceW.png";
     public static final String DISKETTE = "diskette.png";
     public static final String ERASER = "eraser.png";
+    public static final String EXCLAMATION = "exclamation-mark.png";
+    public static final String EXCLAMATION_WHITE = "exclamation-markW.png";
+    public static final String EYE_WHITE = "eye.png";
     public static final String GENERATIVE = "generative.png";
     public static final String GROUP = "group.png";
     public static final String GROUP_WHITE = "groupW.png";
@@ -54,6 +58,7 @@ public final class IconLibrary {
     public static final String PLUS_WHITE = "plus.png";
     public static final String PRINTER = "printer.png";
     public static final String REMOVE = "remove.png";
+    public static final String REMOVE_RED = "removeR.png";
     public static final String SEARCH_BLUE = "search.png";
     public static final String SEARCH_BLACK = "searchB.png";
     public static final String STATISTICS = "statistics.png";
