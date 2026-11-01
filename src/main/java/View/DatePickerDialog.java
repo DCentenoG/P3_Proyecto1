@@ -129,8 +129,9 @@ public final class DatePickerDialog extends JDialog {
 
         JPanel weekdays = new JPanel(new GridLayout(1, 7, 4, 0));
         weekdays.setOpaque(false);
-        DayOfWeek[] order = {DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
-                DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY};
+        // La semana empieza el domingo, igual que la grilla de Actividades (ActivityCalendar).
+        DayOfWeek[] order = {DayOfWeek.SUNDAY, DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+                DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY};
         for (DayOfWeek day : order) {
             JLabel label = new JLabel(day.getDisplayName(TextStyle.NARROW, LOCALE).toUpperCase(LOCALE));
             label.setHorizontalAlignment(SwingConstants.CENTER);
@@ -164,7 +165,9 @@ public final class DatePickerDialog extends JDialog {
 
         daysGrid.removeAll();
         YearMonth yearMonth = YearMonth.from(viewedMonth);
-        int leadingBlanks = viewedMonth.getDayOfWeek().getValue() - 1; // Lunes=1 -> 0 blancos
+        // Celdas vacías antes del día 1, con la semana empezando el domingo:
+        // DayOfWeek va de 1=Lunes a 7=Domingo, así que Domingo -> 0 blancos, Lunes -> 1, ... Sábado -> 6.
+        int leadingBlanks = viewedMonth.getDayOfWeek().getValue() % 7;
         int totalCells = 42; // 6 filas x 7 columnas: tamaño fijo para que el diálogo no cambie de alto entre meses
 
         for (int i = 0; i < totalCells; i++) {
