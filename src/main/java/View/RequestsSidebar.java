@@ -1,6 +1,7 @@
 package View;
 
 import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -14,6 +15,7 @@ import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.FontMetrics;
 import java.awt.GridLayout;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -55,9 +57,11 @@ public class RequestsSidebar extends JPanel {
 
     /** Ancho fijo del sidebar. */
     public static final int SIDEBAR_WIDTH = 260;
+    /** Margen interno izquierdo y derecho del sidebar. */
+    private static final int SIDE_PADDING = 12;
 
     private static final String TITLE = "Solicitudes";
-    private static final String NO_REQUESTS_MESSAGE = "No hay solicitudes para reservas";
+    private static final String NO_REQUESTS_MESSAGE = "No hay solicitudes para reservas pendientes de revisión.";
     /** Filas en blanco iniciales, para que la tabla se vea como en el mockup aun sin datos. */
     private static final int BLANK_ROWS = 12;
     private static final int UNSEEN_ICON_SIZE = 14;
@@ -84,7 +88,7 @@ public class RequestsSidebar extends JPanel {
     public RequestsSidebar() {
         super(new BorderLayout(0, 10));
         setBackground(UITheme.SIDEBAR_BACKGROUND);
-        setBorder(BorderFactory.createEmptyBorder(16, 12, 14, 12));
+        setBorder(BorderFactory.createEmptyBorder(16, SIDE_PADDING, 14, SIDE_PADDING));
         setPreferredSize(new Dimension(SIDEBAR_WIDTH, 10));
 
         titleLabel = UITheme.createSectionTitle(TITLE);
@@ -94,13 +98,10 @@ public class RequestsSidebar extends JPanel {
         JScrollPane tableScroll = new JScrollPane(table);
         UITheme.styleScrollPane(tableScroll);
 
-        JLabel emptyLabel = new JLabel(NO_REQUESTS_MESSAGE, SwingConstants.CENTER);
-        emptyLabel.setFont(UITheme.TABLE_FONT);
-        emptyLabel.setForeground(UITheme.TEXT_BLUE);
         JPanel emptyPanel = new JPanel(new BorderLayout());
         emptyPanel.setOpaque(false);
         emptyPanel.setBorder(BorderFactory.createEmptyBorder(14, 0, 0, 0));
-        emptyPanel.add(emptyLabel, BorderLayout.NORTH);
+        emptyPanel.add(buildEmptyMessage(), BorderLayout.NORTH);
 
         tableContainer = new JPanel(new CardLayout());
         tableContainer.setOpaque(false);
@@ -120,6 +121,50 @@ public class RequestsSidebar extends JPanel {
         actions.add(markAsSeenButton);
         actions.add(reviewButton);
         add(actions, BorderLayout.SOUTH);
+    }
+
+    /**
+     * Mensaje de "no hay solicitudes", centrado. Si es más largo que el ancho
+     * disponible del sidebar, se parte en varias líneas (cada una centrada)
+     * en vez de desbordarse de él.
+     */
+    private static JPanel buildEmptyMessage() {
+        JPanel message = new JPanel();
+        message.setOpaque(false);
+        message.setLayout(new BoxLayout(message, BoxLayout.Y_AXIS));
+
+        int availableWidth = SIDEBAR_WIDTH - 2 * SIDE_PADDING - 8;
+        JLabel probe = new JLabel();
+        probe.setFont(UITheme.TABLE_FONT);
+        FontMetrics metrics = probe.getFontMetrics(UITheme.TABLE_FONT);
+
+        for (String line : wrap(NO_REQUESTS_MESSAGE, metrics, availableWidth)) {
+            JLabel label = new JLabel(line, SwingConstants.CENTER);
+            label.setFont(UITheme.TABLE_FONT);
+            label.setForeground(UITheme.TEXT_BLUE);
+            label.setAlignmentX(Component.CENTER_ALIGNMENT);
+            message.add(label);
+        }
+        return message;
+    }
+
+    /** Parte {@code text} por palabras en líneas que no superan {@code maxWidth} píxeles. */
+    private static List<String> wrap(String text, FontMetrics metrics, int maxWidth) {
+        List<String> lines = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        for (String word : text.split(" ")) {
+            String candidate = current.isEmpty() ? word : current + " " + word;
+            if (!current.isEmpty() && metrics.stringWidth(candidate) > maxWidth) {
+                lines.add(current.toString());
+                current = new StringBuilder(word);
+            } else {
+                current = new StringBuilder(candidate);
+            }
+        }
+        if (!current.isEmpty()) {
+            lines.add(current.toString());
+        }
+        return lines;
     }
 
     private JTable buildTable() {
