@@ -15,8 +15,10 @@ import java.awt.CardLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridLayout;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -37,9 +39,12 @@ import java.util.Set;
  *   <li>Los botones "Marcar como vista" y "Revisar", que operan sobre la
  *       solicitud seleccionada en la tabla.</li>
  * </ul>
- * Solo construye la interfaz gráfica: la carga de las solicitudes, su
- * orden y las acciones se conectan desde el manejo de eventos en una
- * etapa posterior.
+ * El controlador le entrega las solicitudes ya ordenadas con
+ * {@link #showRequests(List)} y el sidebar se encarga de mostrarlas: la
+ * tabla, los íconos de las no vistas, el contador del título y el mensaje
+ * de "no hay solicitudes". Las acciones de los botones se conectan desde
+ * el controlador ({@code Controller}), que obtiene la solicitud elegida con
+ * {@link #getSelectedRequestIndex()}.
  */
 public class RequestsSidebar extends JPanel {
 
@@ -65,6 +70,16 @@ public class RequestsSidebar extends JPanel {
 
     /** Filas (índices de la tabla) cuyas solicitudes aún no se marcaron como vistas. */
     private final Set<Integer> unseenRows = new HashSet<>();
+
+    /** Cantidad de solicitudes mostradas (las filas siguientes son de relleno, en blanco). */
+    private int requestCount = 0;
+
+    /**
+     * Lo que el sidebar muestra de una solicitud: el funcionario que la hizo,
+     * la actividad y si su notificación aún no se marcó como vista.
+     */
+    public record RequestRow(String employeeName, String activity, boolean unseen) {
+    }
 
     public RequestsSidebar() {
         super(new BorderLayout(0, 10));
@@ -116,12 +131,64 @@ public class RequestsSidebar extends JPanel {
         };
         JTable sidebarTable = new JTable(model);
         UITheme.styleTable(sidebarTable, UITheme.SIDEBAR_TABLE_HEADER);
+        sidebarTable.getColumnModel().getColumn(0).setCellRenderer(new TooltipCellRenderer());
         sidebarTable.getColumnModel().getColumn(ACTIVITY_COLUMN).setCellRenderer(new ActivityCellRenderer());
         return sidebarTable;
     }
 
     // ---------------------------------------------------------------
-    // Estado visual (lo usa el controlador al cargar las solicitudes)
+    // Carga de las solicitudes (la usa el controlador)
+    // ---------------------------------------------------------------
+
+    /**
+     * Muestra {@code requests} en la tabla, en el orden recibido (el
+     * controlador las entrega ya ordenadas: nuevas primero, luego vistas).
+     * Además actualiza el ícono de las no vistas y el contador del título,
+     * y si no hay ninguna solicitud muestra el mensaje en lugar de la tabla.
+     * Como el orden puede cambiar, se quita la selección anterior y la tabla
+     * vuelve al principio (donde entran las solicitudes nuevas).
+     */
+    public void showRequests(List<RequestRow> requests) {
+        DefaultTableModel model = (DefaultTableModel) table.getModel();
+        table.clearSelection();
+        requestCount = requests.size();
+
+        List<Integer> unseen = new ArrayList<>();
+        model.setRowCount(Math.max(BLANK_ROWS, requestCount));
+        for (int row = 0; row < model.getRowCount(); row++) {
+            if (row < requestCount) {
+                RequestRow request = requests.get(row);
+                model.setValueAt(request.employeeName(), row, 0);
+                model.setValueAt(request.activity(), row, ACTIVITY_COLUMN);
+                if (request.unseen()) {
+                    unseen.add(row);
+                }
+            } else {
+                model.setValueAt(null, row, 0);
+                model.setValueAt(null, row, ACTIVITY_COLUMN);
+            }
+        }
+
+        setUnseenRows(unseen);
+        setUnseenCount(unseen.size());
+        showEmptyState(requestCount == 0);
+        if (requestCount > 0) {
+            table.scrollRectToVisible(table.getCellRect(0, 0, true));
+        }
+    }
+
+    /**
+     * Índice (en la lista entregada a {@link #showRequests(List)}) de la
+     * solicitud seleccionada, o {@code -1} si no hay ninguna seleccionada
+     * (incluye haber seleccionado una fila de relleno en blanco).
+     */
+    public int getSelectedRequestIndex() {
+        int row = table.getSelectedRow();
+        return (row >= 0 && row < requestCount) ? row : -1;
+    }
+
+    // ---------------------------------------------------------------
+    // Estado visual (lo aplica showRequests)
     // ---------------------------------------------------------------
 
     /**
@@ -167,6 +234,21 @@ public class RequestsSidebar extends JPanel {
     }
 
     // ---------------------------------------------------------------
+    // Celda "Funcionario": texto normal, con el nombre completo en el tooltip
+    // ---------------------------------------------------------------
+
+    /** Igual que una celda normal, pero con el texto completo como tooltip (la columna es angosta). */
+    private static final class TooltipCellRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                                                       boolean hasFocus, int row, int column) {
+            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            setToolTipText(value == null ? null : value.toString());
+            return this;
+        }
+    }
+
+    // ---------------------------------------------------------------
     // Celda "Actividad": texto + ícono de exclamación si no se ha visto
     // ---------------------------------------------------------------
 
@@ -196,7 +278,10 @@ public class RequestsSidebar extends JPanel {
             // tabla y sus líneas de la grilla, igual que en las demás celdas.
             cell.setOpaque(isSelected);
             cell.setBackground(table.getSelectionBackground());
-            icon.setVisible(value != null && unseenRows.contains(row));
+            boolean unseen = value != null && unseenRows.contains(row);
+            icon.setVisible(unseen);
+            // El texto se recorta si es largo: el tooltip muestra la actividad completa.
+            cell.setToolTipText(value == null ? null : value + (unseen ? " (nueva)" : ""));
             return cell;
         }
     }
