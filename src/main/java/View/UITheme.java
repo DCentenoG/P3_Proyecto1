@@ -42,6 +42,10 @@ public final class UITheme {
     public static final Color CALENDAR_EVENT = Color.decode("#7DC4F4");
     public static final Color STATS_PANEL = Color.decode("#C3CBE3");
 
+    // ---- Sidebar de solicitudes del administrador (mockup) ----
+    public static final Color SIDEBAR_BACKGROUND = Color.decode("#C3CBE3");
+    public static final Color SIDEBAR_TABLE_HEADER = Color.decode("#7283A6");
+
     // ---- Color del texto del estado de una reserva (paleta actualizada del mockup) ----
     public static final Color STATE_ACCEPTED = ADD_GREEN;              // "Aceptada"
     public static final Color STATE_REJECTED = DANGER_RED;             // "Rechazada"
@@ -356,6 +360,27 @@ public final class UITheme {
     }
 
     /**
+     * Botón "Marcar como vista" independiente (rectángulo verde
+     * {@code #05862C} de esquinas redondeadas con un check y el texto en
+     * blanco, en dos líneas), usado en el sidebar de solicitudes del
+     * administrador ({@link RequestsSidebar}) para marcar como vista la
+     * notificación de la solicitud seleccionada.
+     */
+    public static JButton createMarkAsSeenButton() {
+        return new RoundedActionButton("<html><center>Marcar<br>como vista</center></html>",
+                IconLibrary.CHECK_WHITE, ADD_GREEN);
+    }
+
+    /**
+     * Ajusta un botón de {@link RoundedActionButton} a un espacio reducido
+     * (márgenes internos más chicos), como los del sidebar de solicitudes.
+     */
+    public static void compactActionButton(JButton button) {
+        button.setMargin(new java.awt.Insets(6, 8, 6, 8));
+        button.setIconTextGap(5);
+    }
+
+    /**
      * Botón "Borrar" independiente (rectángulo rojo {@code #C20606} de
      * esquinas redondeadas con ícono y texto blancos), usado junto a
      * {@link #createEditButton()} bajo el listado de {@link CRUDView}.
@@ -384,6 +409,15 @@ public final class UITheme {
      * {@code TableBuilder} para los CRUD.
      */
     public static void styleTable(JTable table) {
+        styleTable(table, ACCENT_BLUE);
+    }
+
+    /**
+     * Igual que {@link #styleTable(JTable)} pero con otro color de fondo
+     * para el encabezado (p. ej. la tabla del sidebar de solicitudes, cuyo
+     * encabezado es {@link #SIDEBAR_TABLE_HEADER}).
+     */
+    public static void styleTable(JTable table, Color headerColor) {
         table.setFont(TABLE_FONT);
         table.setRowHeight(26);
         table.setGridColor(TABLE_GRID);
@@ -393,14 +427,17 @@ public final class UITheme {
 
         JTableHeader header = table.getTableHeader();
         header.setFont(TABLE_HEADER_FONT);
-        header.setBackground(ACCENT_BLUE);
+        header.setBackground(headerColor);
         header.setForeground(WHITE);
         header.setReorderingAllowed(false);
-        header.setDefaultRenderer(new TableHeaderRenderer());
+        header.setDefaultRenderer(new TableHeaderRenderer(headerColor));
     }
 
     private static final class TableHeaderRenderer extends DefaultTableCellRenderer {
-        TableHeaderRenderer() {
+        private final Color background;
+
+        TableHeaderRenderer(Color background) {
+            this.background = background;
             setHorizontalAlignment(SwingConstants.LEFT);
             setOpaque(true);
         }
@@ -410,7 +447,7 @@ public final class UITheme {
                                                          boolean hasFocus, int row, int column) {
             setText(value == null ? "" : value.toString());
             setFont(TABLE_HEADER_FONT);
-            setBackground(ACCENT_BLUE);
+            setBackground(background);
             setForeground(WHITE);
             setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
             return this;
