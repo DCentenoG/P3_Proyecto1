@@ -34,6 +34,7 @@ public final class IconLibrary {
     public static final String CALENDAR_WHITE = "calendarW.png";
     public static final String CATEGORIES = "categories.png";
     public static final String CATEGORIES_WHITE = "categoriesW.png";
+    public static final String CHECK_WHITE = "check.png";
     public static final String CHECKED = "checked.png";
     public static final String CHECKED_GREEN = "checkedG.png";
     public static final String CLIPBOARD = "clipboard.png";
@@ -43,7 +44,6 @@ public final class IconLibrary {
     public static final String DISKETTE = "diskette.png";
     public static final String ERASER = "eraser.png";
     public static final String EXCLAMATION = "exclamation-mark.png";
-    public static final String EXCLAMATION_WHITE = "exclamation-markW.png";
     public static final String EYE_WHITE = "eye.png";
     public static final String GENERATIVE = "generative.png";
     public static final String GROUP = "group.png";

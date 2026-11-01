@@ -14,11 +14,9 @@ import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,13 +32,13 @@ public final class ActivitySchedulingViewListener {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    /** Mismos nombres y orden (Lunes..Viernes) que las columnas de {@link ActivityCalendar}. */
-    private static final String[] WEEKDAY_NAMES = {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes"};
+    /** Mismos nombres y orden (Domingo..Sábado) que las columnas de {@link ActivityCalendar}. */
+    private static final List<String> DAY_NAMES = ActivityCalendar.DAY_NAMES;
 
     private final ActivitySchedulingView view;
     private final SessionContext session;
 
-    /** Reserva (y su funcionario) detrás de cada celda ocupada de la grilla actual, indexada por "día (0=Lunes)|hora". */
+    /** Reserva (y su funcionario) detrás de cada celda ocupada de la grilla actual, indexada por "día (0=Domingo)|hora". */
     private final Map<String, ScheduleEntry> cellIndex = new HashMap<>();
 
     private record ScheduleEntry(Employee employee, Reservation reservation) {
@@ -154,8 +152,8 @@ public final class ActivitySchedulingViewListener {
         ActivityCalendar calendar = view.getActivityCalendar();
         calendar.setWeek(activeWeek);
 
-        LocalDate monday = activeWeek.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        LocalDate friday = monday.plusDays(4);
+        LocalDate weekStart = ActivityCalendar.weekStartOf(activeWeek);
+        LocalDate weekEnd = weekStart.plusDays(DAY_NAMES.size() - 1);
 
         cellIndex.clear();
         for (Employee employee : session.getUsers().getListOfEmployees()) {
@@ -165,10 +163,10 @@ public final class ActivitySchedulingViewListener {
                     continue;
                 }
                 LocalDate date = reservation.getDate();
-                if (date.isBefore(monday) || date.isAfter(friday)) {
+                if (date.isBefore(weekStart) || date.isAfter(weekEnd)) {
                     continue;
                 }
-                int dayIndex = date.getDayOfWeek().getValue() - 1; // 0=Lunes..4=Viernes
+                int dayIndex = ActivityCalendar.dayIndexOf(date); // 0=Domingo..6=Sábado
                 String label = reservation.getActivity() + " - " + employee.getName();
                 for (String hour : CalendarViewListener.hoursBetween(reservation.getStartTime(), reservation.getEndTime())) {
                     calendar.setActivity(dayIndex, hour, label);
@@ -195,11 +193,11 @@ public final class ActivitySchedulingViewListener {
             return;
         }
 
-        LocalDate monday = activeWeek.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        LocalDate friday = monday.plusDays(4);
+        LocalDate weekStart = ActivityCalendar.weekStartOf(activeWeek);
+        LocalDate weekEnd = weekStart.plusDays(DAY_NAMES.size() - 1);
 
         Map<String, Object> parameters = new HashMap<>();
-        parameters.put("weekText", monday.format(DATE_FORMAT) + " al " + friday.format(DATE_FORMAT));
+        parameters.put("weekText", weekStart.format(DATE_FORMAT) + " al " + weekEnd.format(DATE_FORMAT));
 
         try {
             byte[] pdf = ReportService.generatePdf("/ReportDesign/actividades.jrxml", rows, parameters);
@@ -209,15 +207,15 @@ public final class ActivitySchedulingViewListener {
         }
     }
 
-    /** Aplana {@link #cellIndex} a una fila por franja ocupada, ordenada por día (Lunes..Viernes) y luego por hora. */
+    /** Aplana {@link #cellIndex} a una fila por franja ocupada, ordenada por día (Domingo..Sábado) y luego por hora. */
     private List<ScheduleReportRow> buildScheduleRows() {
         List<ScheduleReportRow> rows = new ArrayList<>();
         List<String> hours = View.ResourceCalendar.hoursOfDay();
-        for (int dayIndex = 0; dayIndex < WEEKDAY_NAMES.length; dayIndex++) {
+        for (int dayIndex = 0; dayIndex < DAY_NAMES.size(); dayIndex++) {
             for (String hour : hours) {
                 ScheduleEntry entry = cellIndex.get(dayIndex + "|" + hour);
                 if (entry != null) {
-                    rows.add(new ScheduleReportRow(WEEKDAY_NAMES[dayIndex], hour,
+                    rows.add(new ScheduleReportRow(DAY_NAMES.get(dayIndex), hour,
                             entry.reservation().getActivity(), entry.employee().getName()));
                 }
             }

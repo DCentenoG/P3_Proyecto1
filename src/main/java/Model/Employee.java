@@ -6,6 +6,7 @@ import Model.exceptions.ResourceUnavailableException;
 
 import java.util.ArrayList;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -61,7 +62,8 @@ public class Employee extends User{
      * "En revision" (valor por defecto de Reservation) con las categorias que
      * pidio el funcionario, SIN recursos asignados: el recurso especifico de
      * cada categoria lo elige el administrador al aprobarla. Por eso queda de
-     * inmediato en las solicitudes que revisa el administrador.
+     * inmediato en las solicitudes que revisa el administrador, como una
+     * notificacion nueva (no vista) recibida en "receivedAt".
      *
      * Antes de crearla se verifica que cada categoria requerida tenga al menos
      * un recurso libre en ese horario (contra las reservas ya Aceptadas); si
@@ -69,7 +71,7 @@ public class Employee extends User{
      * categorias sin disponibilidad, como pide el enunciado.
      */
     public void tryBook(String activity, LocalDate date, LocalTime startTime, LocalTime endTime,
-                        List<ResourceCategory> requiredCategories, UserContainer users)
+                        List<ResourceCategory> requiredCategories, UserContainer users, LocalDateTime receivedAt)
             throws ResourceUnavailableException {
 
         Reservation reservation = new Reservation(activity, date, startTime, endTime);
@@ -80,6 +82,8 @@ public class Employee extends User{
         }
 
         reservation.setRequiredCategories(new ArrayList<>(requiredCategories));
+        // Entra como notificacion nueva (no vista) para el administrador.
+        reservation.getNotification().receive(receivedAt);
         reservations.add(reservation);
     }
 
@@ -87,7 +91,8 @@ public class Employee extends User{
      * Edita una reserva existente de este funcionario con los nuevos datos. Sin
      * importar su estado anterior (En revision, Aceptada, Rechazada o Cancelada),
      * al guardarse vuelve a "En revision": libera los recursos y el horario que
-     * ocupaba y debe revisarse de nuevo para volver a estar Aceptada.
+     * ocupaba y debe revisarse de nuevo para volver a estar Aceptada. Tambien
+     * vuelve a entrar como notificacion nueva para el administrador.
      *
      * Igual que al crear, cada categoria requerida debe tener al menos un recurso
      * libre en el nuevo horario. Al revisarlo se ignora la reserva original (sus
@@ -98,7 +103,8 @@ public class Employee extends User{
      * reserva conserve su posicion en "Mis reservas".
      */
     public void tryEdit(Reservation target, String activity, LocalDate date, LocalTime startTime,
-                        LocalTime endTime, List<ResourceCategory> requiredCategories, UserContainer users)
+                        LocalTime endTime, List<ResourceCategory> requiredCategories, UserContainer users,
+                        LocalDateTime receivedAt)
             throws ResourceUnavailableException, ReservationNotFoundException {
 
         requireOwnReservation(target);
@@ -115,7 +121,7 @@ public class Employee extends User{
         target.setStartTime(edited.getStartTime());
         target.setEndTime(edited.getEndTime());
         target.setRequiredCategories(new ArrayList<>(requiredCategories));
-        target.returnToReview();
+        target.returnToReview(receivedAt);
     }
 
     /*

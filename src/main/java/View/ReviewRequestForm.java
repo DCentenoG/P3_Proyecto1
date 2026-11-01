@@ -23,7 +23,8 @@ import java.util.Map;
 
 /**
  * Formulario "Revisar solicitud" (mockup): se abre desde el botón
- * "Revisar" de {@link RequestsView} sobre la solicitud seleccionada.
+ * "Revisar" del sidebar de solicitudes ({@link RequestsSidebar}) sobre la
+ * solicitud seleccionada.
  * <p>
  * Muestra, solo para lectura, los datos de la solicitud (funcionario,
  * actividad, fecha y horario). En "Recursos" hay una fila por cada

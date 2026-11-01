@@ -22,8 +22,9 @@ import java.util.List;
  * y un {@link JTabbedPane} cuyo contenido varía según el rol del usuario
  * con el que se ingresó: un {@code Funcionario} ve Reservas,
  * Calendarización, Actividades y Estadísticas; un {@code Administrador}
- * ve Funcionarios, Categorías, Recursos y Solicitudes (las reservas
- * pendientes de revisión) en lugar de Reservas. Al cambiar de tab, este
+ * ve Funcionarios, Categorías y Recursos en lugar de Reservas, y además,
+ * fijo a la derecha, el {@link RequestsSidebar} con las solicitudes de
+ * reserva pendientes de revisión. Al cambiar de tab, este
  * resalta su fondo e ícono tal como se definió en el mockup.
  * <p>
  * Esta clase solo construye la interfaz gráfica; la lógica de negocio y
@@ -34,6 +35,7 @@ public class MainFrame extends JFrame {
 
     private final TopBar topBar;
     private final JTabbedPane tabbedPane;
+    private final RequestsSidebar requestsSidebar;
     private final List<TabComponent> tabComponents = new ArrayList<>();
 
     public MainFrame(User user) {
@@ -48,14 +50,31 @@ public class MainFrame extends JFrame {
         content.setBackground(UITheme.BACKGROUND);
         setContentPane(content);
 
+        // Barra superior + pestañas a la izquierda; el sidebar de solicitudes
+        // (solo administrador) ocupa todo el alto de la ventana a la derecha,
+        // como en el mockup.
+        JPanel main = new JPanel(new BorderLayout());
+        main.setBackground(UITheme.BACKGROUND);
+
         topBar = new TopBar(String.valueOf(user.getId()), roleLabel);
-        content.add(topBar, BorderLayout.NORTH);
+        main.add(topBar, BorderLayout.NORTH);
 
         tabbedPane = buildTabbedPane(isAdmin);
-        content.add(tabbedPane, BorderLayout.CENTER);
+        main.add(tabbedPane, BorderLayout.CENTER);
+        content.add(main, BorderLayout.CENTER);
 
-        setSize(900, 640);
-        setMinimumSize(new Dimension(820, 560));
+        // El sidebar es exclusivo del administrador: un funcionario no lo tiene.
+        requestsSidebar = isAdmin ? new RequestsSidebar() : null;
+        int sidebarWidth = 0;
+        if (requestsSidebar != null) {
+            content.add(requestsSidebar, BorderLayout.EAST);
+            sidebarWidth = RequestsSidebar.SIDEBAR_WIDTH;
+        }
+
+        // Con el sidebar, la ventana se ensancha lo mismo que él ocupa, para que
+        // el contenido de las pestañas conserve el mismo espacio que antes.
+        setSize(900 + sidebarWidth, 640);
+        setMinimumSize(new Dimension(820 + sidebarWidth, 560));
         setLocationRelativeTo(null);
     }
 
@@ -71,7 +90,6 @@ public class MainFrame extends JFrame {
             addTab(pane, "Funcionarios", IconLibrary.GROUP, IconLibrary.GROUP_WHITE, new EmployeesView());
             addTab(pane, "Categorías", IconLibrary.CATEGORIES, IconLibrary.CATEGORIES_WHITE, new CategoriesView());
             addTab(pane, "Recursos", IconLibrary.DEVICE, IconLibrary.DEVICE_WHITE, new ResourceSchedulingView());
-            addTab(pane, "Solicitudes", IconLibrary.EXCLAMATION, IconLibrary.EXCLAMATION_WHITE, new RequestsView());
         } else {
             addTab(pane, "Reservas", IconLibrary.LIST, IconLibrary.LIST_WHITE, new ReservationsView());
         }
@@ -104,6 +122,11 @@ public class MainFrame extends JFrame {
 
     public JTabbedPane getTabbedPane() {
         return tabbedPane;
+    }
+
+    /** Sidebar de solicitudes, o {@code null} si el usuario no es administrador. */
+    public RequestsSidebar getRequestsSidebar() {
+        return requestsSidebar;
     }
 
     /**
