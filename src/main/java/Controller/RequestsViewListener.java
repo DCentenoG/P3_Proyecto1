@@ -1,21 +1,13 @@
 package Controller;
 
-import Model.Employee;
 import Model.Reservation;
-import Model.Resource;
-import Model.ResourceCategory;
 import Report.ReportException;
 import Report.ReportService;
 import Report.RequestReportRow;
 import Service.ReservationService;
 import Service.ReservationService.PendingRequest;
-import Service.ServiceException;
-import View.RejectRequestForm;
 import View.RequestsView;
-import View.ReviewRequestForm;
 
-import javax.swing.JComboBox;
-import javax.swing.JDialog;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import java.awt.Window;
@@ -25,26 +17,20 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Maneja los eventos de la pestaña "Solicitudes" del administrador
- * ({@link RequestsView}) y de sus formularios de revisión
- * ({@link ReviewRequestForm}) y de rechazo ({@link RejectRequestForm}).
+ * ({@link RequestsView}).
+ * <p>
+ * TEMPORAL: esta pestaña se reemplaza por el sidebar de solicitudes
+ * ({@link RequestsSidebarListener}) y se elimina al terminar esa migración.
+ * Mientras tanto, "Revisar" (o doble clic sobre la fila) abre exactamente
+ * el mismo flujo de revisión que el sidebar ({@link RequestReviewFlow}).
  * <p>
  * El listado muestra solo las reservas "En revisión" de todos los
  * funcionarios (ver {@link ReservationService#listPendingRequests()}).
- * "Revisar" (o doble clic sobre la fila) abre la solicitud seleccionada:
- * <ul>
- *   <li><b>Aprobar</b>: el administrador elige, por cada categoría
- *       requerida, uno de los recursos libres en ese horario; la reserva
- *       queda "Aceptada" y empieza a mostrarse en todo el sistema.</li>
- *   <li><b>Rechazar</b>: se cierra la revisión y se abre el formulario
- *       del motivo, que es obligatorio; la reserva queda "Rechazada".</li>
- * </ul>
- * En ambos casos la solicitud deja de aparecer en el listado, y se avisa
- * al resto de pestañas (Calendarización, Actividades) para que se
- * refresquen con los datos ya actualizados.
+ * Tras aprobar o rechazar, la solicitud deja de aparecer en el listado, y
+ * se avisa al resto de pestañas y al sidebar para que se refresquen.
  */
 public final class RequestsViewListener {
 
@@ -53,7 +39,6 @@ public final class RequestsViewListener {
 
     /** Filas mínimas de la tabla (las demás quedan en blanco), igual que los demás listados. */
     private static final int MIN_ROWS = 7;
-    private static final String NO_RESOURCES_OPTION = "(Sin recursos disponibles)";
 
     private final RequestsView view;
     private final SessionContext session;
@@ -130,128 +115,8 @@ public final class RequestsViewListener {
             DialogHelper.warn(view, "Debe seleccionar una solicitud de la tabla para poder revisarla.");
             return;
         }
-        PendingRequest request = currentRequests.get(row);
-
-        Map<ResourceCategory, List<Resource>> available;
-        try {
-            available = session.getReservationService().availableResourcesFor(request.reservation());
-        } catch (ServiceException ex) {
-            DialogHelper.error(view, ex.getMessage());
-            return;
-        }
-
-        ReviewRequestForm form = new ReviewRequestForm(windowOf());
-        form.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-        loadRequest(form, request, available);
-        form.getApproveButton().addActionListener(e -> onApprove(form, request, available));
-        form.getRejectButton().addActionListener(e -> onReject(form, request));
-        form.setVisible(true);
-    }
-
-    /** Carga los datos de la solicitud (solo lectura) y, por categoría, los recursos libres para elegir. */
-    private void loadRequest(ReviewRequestForm form, PendingRequest request,
-                             Map<ResourceCategory, List<Resource>> available) {
-        Reservation reservation = request.reservation();
-        form.setEmployeeId(String.valueOf(request.employee().getId()));
-        form.setEmployeeName(request.employee().getName());
-        form.setActivity(reservation.getActivity());
-        form.setDate(reservation.getDate().format(DATE_FORMAT));
-        form.setStartTime(reservation.getStartTime().format(TIME_FORMAT));
-        form.setEndTime(reservation.getEndTime().format(TIME_FORMAT));
-
-        List<String> categoryNames = new ArrayList<>();
-        for (ResourceCategory category : available.keySet()) {
-            categoryNames.add(category.getDescription());
-        }
-        form.setRequiredCategories(categoryNames);
-
-        for (Map.Entry<ResourceCategory, List<Resource>> entry : available.entrySet()) {
-            JComboBox<String> combo = form.getResourceCombo(entry.getKey().getDescription());
-            if (entry.getValue().isEmpty()) {
-                combo.addItem(NO_RESOURCES_OPTION);
-                combo.setEnabled(false);
-                continue;
-            }
-            for (Resource resource : entry.getValue()) {
-                combo.addItem(resource.getDescription());
-            }
-        }
-    }
-
-    private void onApprove(ReviewRequestForm form, PendingRequest request,
-                           Map<ResourceCategory, List<Resource>> available) {
-        List<Resource> chosen = new ArrayList<>();
-        List<String> withoutResources = new ArrayList<>();
-        for (Map.Entry<ResourceCategory, List<Resource>> entry : available.entrySet()) {
-            JComboBox<String> combo = form.getResourceCombo(entry.getKey().getDescription());
-            int index = combo.getSelectedIndex();
-            if (entry.getValue().isEmpty() || index < 0) {
-                withoutResources.add(entry.getKey().getDescription());
-            } else {
-                // Las opciones del combo están en el mismo orden que la lista de recursos libres.
-                chosen.add(entry.getValue().get(index));
-            }
-        }
-        if (!withoutResources.isEmpty()) {
-            DialogHelper.warn(form, "No hay recursos disponibles en ese horario para: "
-                    + String.join(", ", withoutResources)
-                    + ". La solicitud no se puede aprobar; puede rechazarla indicando el motivo.");
-            return;
-        }
-        if (!DialogHelper.confirm(form, "¿Desea aprobar esta solicitud con los recursos elegidos?")) {
-            return;
-        }
-
-        try {
-            session.getReservationService().approveRequest(request.employee().getId(), request.reservation(), chosen);
-        } catch (ServiceException ex) {
-            DialogHelper.error(form, ex.getMessage());
-            return;
-        }
-
-        DialogHelper.info(form, "Solicitudes", "La solicitud fue aprobada. La reserva quedó \"Aceptada\".");
-        form.dispose();
-        afterReviewDone();
-    }
-
-    // ------------------------------------------------------------------
-    // Rechazar solicitud (con motivo obligatorio)
-    // ------------------------------------------------------------------
-
-    /** Cierra la revisión y abre el formulario del motivo del rechazo. */
-    private void onReject(ReviewRequestForm reviewForm, PendingRequest request) {
-        reviewForm.dispose();
-
-        RejectRequestForm form = new RejectRequestForm(windowOf());
-        form.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-        form.setRequestSummary(summaryOf(request));
-        form.getRejectButton().addActionListener(e -> onConfirmReject(form, request));
-        // Cancelar: no se rechaza; la solicitud sigue pendiente en el listado.
-        form.getCancelButton().addActionListener(e -> form.dispose());
-        form.setVisible(true);
-    }
-
-    private void onConfirmReject(RejectRequestForm form, PendingRequest request) {
-        String reason = form.getReasonField().getText().trim();
-        if (reason.isEmpty()) {
-            DialogHelper.warn(form, "Debe escribir el motivo del rechazo para poder rechazar la solicitud.");
-            form.getReasonField().requestFocusInWindow();
-            return;
-        }
-        if (!DialogHelper.confirm(form, "¿Desea rechazar esta solicitud?")) {
-            return;
-        }
-
-        try {
-            session.getReservationService().rejectRequest(request.employee().getId(), request.reservation(), reason);
-        } catch (ServiceException ex) {
-            DialogHelper.error(form, ex.getMessage());
-            return;
-        }
-
-        DialogHelper.info(form, "Solicitudes", "La solicitud fue rechazada. El funcionario podrá ver el motivo.");
-        form.dispose();
-        afterReviewDone();
+        // Mismo flujo de revisión (aprobar / rechazar con motivo) que el sidebar de solicitudes.
+        RequestReviewFlow.open(session, view, windowOf(), currentRequests.get(row), this::afterReviewDone);
     }
 
     private void afterReviewDone() {
@@ -289,13 +154,6 @@ public final class RequestsViewListener {
 
     private static String timeRange(Reservation reservation) {
         return reservation.getStartTime().format(TIME_FORMAT) + " - " + reservation.getEndTime().format(TIME_FORMAT);
-    }
-
-    private static String summaryOf(PendingRequest request) {
-        Employee employee = request.employee();
-        Reservation reservation = request.reservation();
-        return employee.getName() + " · " + reservation.getActivity() + " · "
-                + reservation.getDate().format(DATE_FORMAT) + " · " + timeRange(reservation);
     }
 
     private Window windowOf() {

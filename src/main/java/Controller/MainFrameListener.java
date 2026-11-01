@@ -128,18 +128,41 @@ public final class MainFrameListener {
             });
         }
 
-        // Aprobar o rechazar una solicitud cambia qué reservas se muestran de
-        // forma global (solo las Aceptadas): Calendarización y Actividades se
-        // refrescan de inmediato, igual que con un cambio en "Reservas".
-        if (requestsListener != null && (calendarListener != null || activityListener != null)) {
-            CalendarViewListener finalCalendarListenerForRequests = calendarListener;
-            ActivitySchedulingViewListener finalActivityListenerForRequests = activityListener;
-            requestsListener.setAfterReview(() -> {
-                if (finalCalendarListenerForRequests != null) {
-                    finalCalendarListenerForRequests.refresh();
+        // Sidebar de solicitudes (solo existe para el administrador).
+        RequestsSidebarListener sidebarListener = (mainFrame.getRequestsSidebar() != null)
+                ? new RequestsSidebarListener(mainFrame.getRequestsSidebar(), session)
+                : null;
+
+        // Revisar una solicitud (aprobarla o rechazarla) cambia qué reservas se
+        // muestran de forma global (solo las Aceptadas): Calendarización y
+        // Actividades se refrescan de inmediato. Además, el sidebar y la pestaña
+        // "Solicitudes" (temporal, hasta eliminarla) muestran las mismas
+        // solicitudes, así que un cambio hecho en uno refresca al otro.
+        CalendarViewListener finalCalendarListenerForRequests = calendarListener;
+        ActivitySchedulingViewListener finalActivityListenerForRequests = activityListener;
+        RequestsViewListener finalRequestsListener = requestsListener;
+        RequestsSidebarListener finalSidebarListener = sidebarListener;
+        Runnable refreshAfterRequestChange = () -> {
+            if (finalCalendarListenerForRequests != null) {
+                finalCalendarListenerForRequests.refresh();
+            }
+            if (finalActivityListenerForRequests != null) {
+                finalActivityListenerForRequests.refresh();
+            }
+        };
+        if (sidebarListener != null) {
+            sidebarListener.setAfterChange(() -> {
+                refreshAfterRequestChange.run();
+                if (finalRequestsListener != null) {
+                    finalRequestsListener.refresh();
                 }
-                if (finalActivityListenerForRequests != null) {
-                    finalActivityListenerForRequests.refresh();
+            });
+        }
+        if (requestsListener != null) {
+            requestsListener.setAfterReview(() -> {
+                refreshAfterRequestChange.run();
+                if (finalSidebarListener != null) {
+                    finalSidebarListener.refresh();
                 }
             });
         }
