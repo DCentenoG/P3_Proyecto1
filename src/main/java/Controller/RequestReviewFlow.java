@@ -20,8 +20,8 @@ import java.util.Map;
 
 /**
  * Flujo de revisión de una solicitud de reserva por el administrador,
- * compartido por todo lugar desde donde se puede revisar una solicitud
- * (el sidebar de solicitudes, ver {@link RequestsSidebarListener}):
+ * que se abre desde el sidebar de solicitudes (ver
+ * {@link RequestsSidebarListener}):
  * <ul>
  *   <li>Abre {@link ReviewRequestForm} con los datos de la solicitud (solo
  *       lectura) y, por cada categoría requerida, los recursos libres en ese
@@ -33,7 +33,7 @@ import java.util.Map;
  *       ahí deja la solicitud pendiente, sin cambios.</li>
  * </ul>
  * Tras aprobar o rechazar se invoca {@code afterReview}, para que quien
- * abrió el flujo refresque su listado y el resto de pestañas.
+ * abrió el flujo refresque su listado y el resto de la ventana.
  */
 final class RequestReviewFlow {
 

@@ -168,17 +168,6 @@ public class ReservationService {
         return pending;
     }
 
-    /* Cantidad de solicitudes pendientes cuya notificacion aun no se marco como vista. */
-    public int countUnseenRequests() {
-        int count = 0;
-        for (PendingRequest request : listPendingRequests()) {
-            if (!request.reservation().getNotification().isSeen()) {
-                count++;
-            }
-        }
-        return count;
-    }
-
     /*
     Marca como vista la notificacion de la solicitud. NO cambia el estado de la
     reserva (sigue "En revision"); solo cambia su lugar en el sidebar y deja de

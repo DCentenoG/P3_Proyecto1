@@ -22,6 +22,18 @@
                     <requiredCategory categoryId="CAT-000001"/>
                     <requiredCategory categoryId="CAT-000003"/>
                 </reservation>
+                <reservation activity="Prueba 2" date="2026-11-29" endTime="13:00" notificationReceivedAt="2026-10-31T23:49:58.190172800" notificationSeenAt="2026-10-31T23:56:50.992737800" startTime="10:00" state="IN_REVIEW">
+                    <requiredCategory categoryId="CAT-000001"/>
+                </reservation>
+                <reservation activity="Prueba 3" date="2026-11-09" endTime="11:30" notificationReceivedAt="2026-10-31T23:59:45.361051400" notificationSeenAt="2026-11-01T00:00:18.176177700" startTime="09:10" state="ACCEPTED">
+                    <requiredCategory categoryId="CAT-000001"/>
+                    <requiredCategory categoryId="CAT-000002"/>
+                    <assignedResource categoryId="CAT-000001" resourceId="1"/>
+                    <assignedResource categoryId="CAT-000002" resourceId="1"/>
+                </reservation>
+                <reservation activity="Otra prueba" date="2026-11-03" endTime="07:00" notificationReceivedAt="2026-10-31T23:51:53.139734800" startTime="06:00" state="IN_REVIEW">
+                    <requiredCategory categoryId="CAT-000003"/>
+                </reservation>
             </reservations>
         </user>
         <user id="3" name="Maria Gomez Solano" password="3" phoneNumber="87772222" type="EMPLOYEE">

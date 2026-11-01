@@ -352,8 +352,8 @@ public final class UITheme {
     /**
      * Botón "Revisar" independiente (rectángulo azul de esquinas
      * redondeadas con el ícono de ojo y el texto en blanco), usado bajo el
-     * listado de {@link RequestsView} para abrir la revisión de la
-     * solicitud seleccionada en la tabla.
+     * listado del sidebar de solicitudes ({@link RequestsSidebar}) para
+     * abrir la revisión de la solicitud seleccionada en la tabla.
      */
     public static JButton createReviewButton() {
         return new RoundedActionButton("Revisar", IconLibrary.EYE_WHITE, ACCENT_BLUE);

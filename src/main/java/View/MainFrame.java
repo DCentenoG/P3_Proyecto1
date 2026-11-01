@@ -22,10 +22,9 @@ import java.util.List;
  * y un {@link JTabbedPane} cuyo contenido varía según el rol del usuario
  * con el que se ingresó: un {@code Funcionario} ve Reservas,
  * Calendarización, Actividades y Estadísticas; un {@code Administrador}
- * ve Funcionarios, Categorías, Recursos y Solicitudes (las reservas
- * pendientes de revisión) en lugar de Reservas. El administrador tiene
- * además, fijo a la derecha, el {@link RequestsSidebar} con las
- * solicitudes de reserva. Al cambiar de tab, este
+ * ve Funcionarios, Categorías y Recursos en lugar de Reservas, y además,
+ * fijo a la derecha, el {@link RequestsSidebar} con las solicitudes de
+ * reserva pendientes de revisión. Al cambiar de tab, este
  * resalta su fondo e ícono tal como se definió en el mockup.
  * <p>
  * Esta clase solo construye la interfaz gráfica; la lógica de negocio y
@@ -91,10 +90,6 @@ public class MainFrame extends JFrame {
             addTab(pane, "Funcionarios", IconLibrary.GROUP, IconLibrary.GROUP_WHITE, new EmployeesView());
             addTab(pane, "Categorías", IconLibrary.CATEGORIES, IconLibrary.CATEGORIES_WHITE, new CategoriesView());
             addTab(pane, "Recursos", IconLibrary.DEVICE, IconLibrary.DEVICE_WHITE, new ResourceSchedulingView());
-            // TEMPORAL: esta pestaña se reemplaza por el sidebar de solicitudes y se
-            // elimina al terminar esa migración; mientras tanto usa el mismo ícono
-            // (exclamation-mark.png) activa e inactiva.
-            addTab(pane, "Solicitudes", IconLibrary.EXCLAMATION, IconLibrary.EXCLAMATION, new RequestsView());
         } else {
             addTab(pane, "Reservas", IconLibrary.LIST, IconLibrary.LIST_WHITE, new ReservationsView());
         }

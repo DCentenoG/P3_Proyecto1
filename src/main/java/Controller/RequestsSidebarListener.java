@@ -27,7 +27,8 @@ import java.util.List;
  *       de contarse como nueva. Si ya estaba vista, se avisa.</li>
  *   <li><b>Revisar</b> (o doble clic sobre la fila): abre el mismo flujo de
  *       revisión de siempre ({@link RequestReviewFlow}) para aprobarla o
- *       rechazarla.</li>
+ *       rechazarla. Si la solicitud era nueva, primero se marca como vista
+ *       automáticamente.</li>
  * </ul>
  * Después de cualquiera de las dos se avisa al resto de la ventana (ver
  * {@link #setAfterChange}) para que se refresque con los datos ya
@@ -119,6 +120,21 @@ public final class RequestsSidebarListener {
             DialogHelper.warn(sidebar, "Debe seleccionar una solicitud de la lista para poder revisarla.");
             return;
         }
+
+        // Revisar una solicitud nueva implica haberla visto: se marca como vista
+        // automáticamente (sin tener que pulsar "Marcar como vista"), así baja al
+        // grupo de las vistas y deja de contarse como nueva, aunque luego se cierre
+        // la revisión sin aprobarla ni rechazarla.
+        if (!request.reservation().getNotification().isSeen()) {
+            try {
+                session.getReservationService().markRequestAsSeen(request.employee().getId(), request.reservation());
+            } catch (ServiceException ex) {
+                DialogHelper.error(sidebar, ex.getMessage());
+                return;
+            }
+            refresh();
+        }
+
         RequestReviewFlow.open(session, sidebar, SwingUtilities.getWindowAncestor(sidebar), request,
                 this::afterChangeDone);
     }
