@@ -1,6 +1,7 @@
 package Service;
 
 import Model.Employee;
+import Model.RequestNotification;
 import Model.Reservation;
 import Model.Resource;
 import Model.ResourceCategory;
@@ -12,6 +13,7 @@ import Model.exceptions.ReservationNotFoundException;
 import Model.exceptions.ResourceUnavailableException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,9 +28,10 @@ peso) y del flujo de solicitudes que revisa el administrador:
 - El funcionario crea, edita y cancela sus reservas. Crear o editar deja la
   reserva "En revision" (una solicitud pendiente, sin recursos asignados);
   cancelar la deja "Cancelada" (ya no se borra).
-- El administrador lista las solicitudes pendientes, consulta que recursos
-  estan libres para cada una y la aprueba (eligiendo un recurso por categoria
-  requerida) o la rechaza (con un motivo obligatorio).
+- El administrador lista las solicitudes pendientes (con su notificacion
+  vista / no vista), las marca como vistas, consulta que recursos estan libres
+  para cada una y la aprueba (eligiendo un recurso por categoria requerida) o la
+  rechaza (con un motivo obligatorio).
 - Solo las reservas "Aceptadas" ocupan recursos y horarios en el sistema.
 
 Las reglas de cada cambio de estado viven en el Model (Reservation/Employee);
@@ -68,7 +71,8 @@ public class ReservationService {
         List<ResourceCategory> categories = resolveCategories(requiredCategoryDescriptions);
 
         try {
-            employee.tryBook(activity.trim(), date, startTime, endTime, categories, service.getUsers());
+            employee.tryBook(activity.trim(), date, startTime, endTime, categories, service.getUsers(),
+                    LocalDateTime.now());
         } catch (ResourceUnavailableException e) {
             throw unavailable(e);
         }
@@ -97,7 +101,8 @@ public class ReservationService {
         List<ResourceCategory> categories = resolveCategories(requiredCategoryDescriptions);
 
         try {
-            employee.tryEdit(reservation, activity.trim(), date, startTime, endTime, categories, service.getUsers());
+            employee.tryEdit(reservation, activity.trim(), date, startTime, endTime, categories, service.getUsers(),
+                    LocalDateTime.now());
         } catch (ReservationNotFoundException e) {
             throw new ServiceException(e.getMessage(), e);
         } catch (ResourceUnavailableException e) {
@@ -139,7 +144,17 @@ public class ReservationService {
 
     //--- Administrador: revision de solicitudes ---
 
-    /* Solicitudes "En revision" de todos los funcionarios, ordenadas por fecha y hora de inicio. */
+    /*
+    Solicitudes "En revision" de todos los funcionarios, en el orden en que se
+    muestran en el sidebar del administrador:
+      1. Primero las NO vistas, de la que entro mas recientemente a la mas antigua
+         (una solicitud nueva entrante queda arriba de todas).
+      2. Despues las ya vistas, de la marcada como vista mas recientemente a la mas
+         antigua (al marcar una, queda primera entre las vistas, justo debajo de la
+         ultima no vista).
+    Las de archivos anteriores a este flujo, sin fecha de entrada, quedan al final
+    de su grupo.
+    */
     public List<PendingRequest> listPendingRequests() {
         List<PendingRequest> pending = new ArrayList<>();
         for (Employee employee : service.getUsers().getListOfEmployees()) {
@@ -149,10 +164,37 @@ public class ReservationService {
                 }
             }
         }
-        pending.sort(Comparator
-                .comparing((PendingRequest request) -> request.reservation().getDate())
-                .thenComparing(request -> request.reservation().getStartTime()));
+        pending.sort(NOTIFICATION_ORDER);
         return pending;
+    }
+
+    /* Cantidad de solicitudes pendientes cuya notificacion aun no se marco como vista. */
+    public int countUnseenRequests() {
+        int count = 0;
+        for (PendingRequest request : listPendingRequests()) {
+            if (!request.reservation().getNotification().isSeen()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /*
+    Marca como vista la notificacion de la solicitud. NO cambia el estado de la
+    reserva (sigue "En revision"); solo cambia su lugar en el sidebar y deja de
+    contarse como nueva. Una solicitud ya marcada como vista no se puede marcar otra vez.
+    */
+    public void markRequestAsSeen(int employeeId, Reservation request) throws ServiceException {
+        Employee employee = requireEmployee(employeeId);
+        requireRequestOf(employee, request);
+
+        try {
+            request.markRequestSeen(LocalDateTime.now());
+        } catch (InvalidReservationOperationException e) {
+            throw new ServiceException(e.getMessage(), e);
+        }
+
+        service.save();
     }
 
     /*
@@ -219,6 +261,17 @@ public class ReservationService {
     }
 
     //--- Utilidades ---
+
+    /* Orden del sidebar: no vistas (mas reciente primero), luego vistas (marcada mas recientemente primero). */
+    private static final Comparator<PendingRequest> NOTIFICATION_ORDER = Comparator
+            .comparing((PendingRequest request) -> request.reservation().getNotification().isSeen())
+            .thenComparing(request -> sortTimeOf(request.reservation().getNotification()),
+                    Comparator.nullsLast(Comparator.reverseOrder()));
+
+    /* Momento que ordena una notificacion dentro de su grupo: cuando entro (no vista) o cuando se vio (vista). */
+    private static LocalDateTime sortTimeOf(RequestNotification notification) {
+        return notification.isSeen() ? notification.getSeenAt() : notification.getReceivedAt();
+    }
 
     private void requireRequestOf(Employee employee, Reservation request) throws ServiceException {
         if (request == null) {

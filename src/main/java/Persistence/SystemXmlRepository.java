@@ -3,6 +3,7 @@ package Persistence;
 import Model.Admin;
 import Model.CategoryContainer;
 import Model.Employee;
+import Model.RequestNotification;
 import Model.Reservation;
 import Model.Resource;
 import Model.ResourceCategory;
@@ -25,7 +26,9 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,7 +50,8 @@ Estructura del XML generado:
         <user type="EMPLOYEE" id="2" password="2" name="Juan Perez" phoneNumber="88881111">
             <reservations>
                 <reservation activity="Reunion" date="2026-09-20" startTime="09:00" endTime="10:00"
-                             state="IN_REVIEW">
+                             state="IN_REVIEW" notificationReceivedAt="2026-09-18T10:15:30"
+                             notificationSeenAt="2026-09-18T11:02:04">
                     <requiredCategory categoryId="CAT-000001"/>
                     <assignedResource categoryId="CAT-000001" resourceId="1"/>
                 </reservation>
@@ -65,7 +69,10 @@ funcionando igual que con datos recien creados en memoria).
 
 Cada reserva guarda ademas su estado de revision ("state", el nombre de la
 constante de Model.State), las categorias que pidio el funcionario
-(<requiredCategory>) y, si fue rechazada, el motivo ("rejectionReason").
+(<requiredCategory>), si fue rechazada, el motivo ("rejectionReason"), y la
+notificacion de la solicitud para el administrador (Model.RequestNotification):
+cuando entro ("notificationReceivedAt") y, si ya se marco como vista, cuando
+("notificationSeenAt"); sin "notificationSeenAt" la solicitud es nueva.
 Compatibilidad con archivos anteriores a este flujo: una reserva sin "state"
 se carga "En revision" (IN_REVIEW), y una sin <requiredCategory> toma como
 categorias requeridas las de sus recursos asignados. Solo las reservas
@@ -222,6 +229,9 @@ public class SystemXmlRepository {
             if (reservationEl.hasAttribute("rejectionReason")) {
                 reservation.setRejectionReason(reservationEl.getAttribute("rejectionReason"));
             }
+            reservation.setNotification(new RequestNotification(
+                    parseDateTime(reservationEl.getAttribute("notificationReceivedAt")),
+                    parseDateTime(reservationEl.getAttribute("notificationSeenAt"))));
             //Solo una reserva Aceptada tiene recursos asignados (los elige el administrador al
             //aprobarla). Una reserva de un archivo anterior cargada "En revision" conserva sus
             //categorias requeridas (deducidas arriba de esos recursos), pero no los recursos.
@@ -291,6 +301,18 @@ public class SystemXmlRepository {
             }
         }
         return required;
+    }
+
+    /* Fecha y hora guardada en el XML (ISO, p. ej. 2026-10-31T23:05:12.345), o null si falta o no es valida. */
+    private LocalDateTime parseDateTime(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(value.trim());
+        } catch (DateTimeParseException e) {
+            return null;
+        }
     }
 
     /* Estado guardado en el XML; si falta (archivo anterior) o no es valido, la reserva queda "En revision". */
@@ -373,6 +395,13 @@ public class SystemXmlRepository {
             reservationEl.setAttribute("state", reservation.getState().name());
             if (reservation.getRejectionReason() != null) {
                 reservationEl.setAttribute("rejectionReason", reservation.getRejectionReason());
+            }
+            RequestNotification notification = reservation.getNotification();
+            if (notification.getReceivedAt() != null) {
+                reservationEl.setAttribute("notificationReceivedAt", notification.getReceivedAt().toString());
+            }
+            if (notification.getSeenAt() != null) {
+                reservationEl.setAttribute("notificationSeenAt", notification.getSeenAt().toString());
             }
 
             for (ResourceCategory category : reservation.getRequiredCategories()) {

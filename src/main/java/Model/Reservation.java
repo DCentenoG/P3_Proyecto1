@@ -21,6 +21,9 @@ public class Reservation {
     private State state;
     //Motivo indicado por el administrador al rechazar la solicitud (null si no esta rechazada).
     private String rejectionReason;
+    //Notificacion de la solicitud para el administrador (vista / no vista y cuando entro).
+    //Es un dato aparte del estado: marcarla como vista no cambia "state".
+    private RequestNotification notification;
     //End of attributes
 
     //Default Builder
@@ -33,6 +36,7 @@ public class Reservation {
         requiredCategories = new ArrayList<>();
         state = State.IN_REVIEW;
         rejectionReason = null;
+        notification = new RequestNotification();
     }
 
     //Parameterized Builder
@@ -45,6 +49,7 @@ public class Reservation {
         requiredCategories = new ArrayList<>();
         state = State.IN_REVIEW;
         rejectionReason = null;
+        notification = new RequestNotification();
     }
 
     //basic getters
@@ -80,6 +85,10 @@ public class Reservation {
         return rejectionReason;
     }
 
+    public RequestNotification getNotification() {
+        return notification;
+    }
+
     //basic setters
     public void setActivity(String Activity) {
         this.activity = Activity;
@@ -111,6 +120,10 @@ public class Reservation {
 
     public void setRejectionReason(String rejectionReason) {
         this.rejectionReason = rejectionReason;
+    }
+
+    public void setNotification(RequestNotification notification) {
+        this.notification = notification;
     }
 
     //logic and calculus methods
@@ -271,11 +284,24 @@ public class Reservation {
     La reserva vuelve a ser una solicitud pendiente (se usa al EDITARLA, sin importar
     su estado anterior): queda En revision, libera los recursos que tuviera y se borra
     el motivo de un rechazo previo. Para volver a Aceptada debe revisarse de nuevo.
+    Ademas entra como una notificacion NUEVA para el administrador (no vista, recibida
+    en "receivedAt"), igual que una reserva recien creada.
     */
-    public void returnToReview() {
+    public void returnToReview(LocalDateTime receivedAt) {
         state = State.IN_REVIEW;
         assignedResources.clear();
         rejectionReason = null;
+        notification.receive(receivedAt);
+    }
+
+    /*
+    El administrador marca como vista la notificacion de esta solicitud. Solo cambia la
+    notificacion: la reserva sigue "En revision". Solo aplica a solicitudes pendientes,
+    y una ya marcada como vista no se puede marcar otra vez.
+    */
+    public void markRequestSeen(LocalDateTime seenAt) throws InvalidReservationOperationException {
+        requireInReview("marcar como vista");
+        notification.markSeen(seenAt);
     }
 
     private void requireInReview(String action) throws InvalidReservationOperationException {
