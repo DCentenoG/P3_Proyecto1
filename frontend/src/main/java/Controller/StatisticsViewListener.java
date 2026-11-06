@@ -1,8 +1,7 @@
 package Controller;
 
-import Model.Employee;
-import Model.Reservation;
-import Model.Resource;
+import Dto.StatRow;
+import Service.ServiceException;
 import View.DatePickerDialog;
 import View.StatisticsView;
 
@@ -12,10 +11,9 @@ import javax.swing.table.DefaultTableModel;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.time.temporal.IsoFields;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 /**
  * Maneja los eventos de {@link StatisticsView}: la búsqueda por rango de
@@ -102,46 +100,45 @@ public final class StatisticsViewListener {
             return;
         }
 
-        Map<String, Integer> counts = new TreeMap<>();
-        for (Employee employee : session.getUsers().getListOfEmployees()) {
-            for (Reservation reservation : employee.getReservations()) {
-                // Las estadísticas solo cuentan las reservas Aceptadas (las que se muestran de forma global).
-                if (!reservation.isAccepted()) {
-                    continue;
-                }
-                LocalDate date = reservation.getDate();
-                if (date.isBefore(start) || date.isAfter(end)) {
-                    continue;
-                }
-                if (byCategory) {
-                    for (Resource resource : reservation.getAssignedResources()) {
-                        String key = resource.getResourceCategoryReference().getDescription();
-                        counts.merge(key, 1, Integer::sum);
-                    }
-                } else {
-                    String key = "Semana " + date.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR) + "-" + date.getYear();
-                    counts.merge(key, 1, Integer::sum);
-                }
-            }
+        // El conteo lo hace la capa Service: aquí solo se traducen los campos del
+        // formulario y se pinta el resultado. Antes este método recorría todos los
+        // funcionarios y todas sus reservas en memoria, que es lógica de negocio
+        // dentro del Controlador y además imposible con el Backend remoto.
+        List<StatRow> rows;
+        try {
+            rows = byCategory
+                    ? session.getReservationService().getResourceStatistics(start, end)
+                    : session.getReservationService().getWeeklyStatistics(start, end);
+        } catch (ServiceException ex) {
+            DialogHelper.error(view, ex.getMessage());
+            return;
         }
 
-        renderTable(panel.getTable(), counts);
-        panel.getBarChart().setData(new LinkedHashMap<>(counts));
+        renderTable(panel.getTable(), rows);
+        panel.getBarChart().setData(toChartData(rows));
     }
 
-    private void renderTable(JTable table, Map<String, Integer> counts) {
+    private void renderTable(JTable table, List<StatRow> rows) {
         DefaultTableModel model = (DefaultTableModel) table.getModel();
-        model.setRowCount(Math.max(5, counts.size()));
+        model.setRowCount(Math.max(5, rows.size()));
 
         int row = 0;
-        for (Map.Entry<String, Integer> entry : counts.entrySet()) {
-            model.setValueAt(entry.getKey(), row, 0);
-            model.setValueAt(entry.getValue(), row, 1);
+        for (StatRow statRow : rows) {
+            model.setValueAt(statRow.label(), row, 0);
+            model.setValueAt(statRow.count(), row, 1);
             row++;
         }
         for (; row < model.getRowCount(); row++) {
             model.setValueAt(null, row, 0);
             model.setValueAt(null, row, 1);
         }
+    }
+
+    private static Map<String, Integer> toChartData(List<StatRow> rows) {
+        Map<String, Integer> data = new LinkedHashMap<>();
+        for (StatRow row : rows) {
+            data.put(row.label(), row.count());
+        }
+        return data;
     }
 }

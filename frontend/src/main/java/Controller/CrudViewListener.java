@@ -186,7 +186,7 @@ public final class CrudViewListener {
     private void searchEmployees(FilterSnapshot filters) {
         String idFilter = filters.getTextValue("ID");
         String nameFilter = filters.getTextValue("Nombre");
-        for (Employee employee : session.getUsers().getListOfEmployees()) {
+        for (Employee employee : session.getUserService().listEmployees()) {
             boolean matchesId = !nonBlank(idFilter) || String.valueOf(employee.getId()).equals(idFilter.trim());
             boolean matchesName = !nonBlank(nameFilter)
                     || employee.getName().toLowerCase(Locale.ROOT).contains(nameFilter.trim().toLowerCase(Locale.ROOT));
@@ -198,7 +198,7 @@ public final class CrudViewListener {
 
     private void searchCategories(FilterSnapshot filters) {
         String descriptionFilter = filters.getTextValue("Descripción");
-        for (ResourceCategory category : session.getCategories().getCategories()) {
+        for (ResourceCategory category : session.getResourceService().listCategories()) {
             if (!nonBlank(descriptionFilter) || containsIgnoreCase(category.getDescription(), descriptionFilter)) {
                 currentResults.add(category);
             }
@@ -211,7 +211,7 @@ public final class CrudViewListener {
                 ? selectedCategory.toString() : null;
         String descriptionFilter = filters.getTextValue("Descripción");
 
-        for (ResourceCategory category : session.getCategories().getCategories()) {
+        for (ResourceCategory category : session.getResourceService().listCategories()) {
             if (categoryFilter != null && !category.getDescription().equals(categoryFilter)) {
                 continue;
             }
@@ -300,7 +300,7 @@ public final class CrudViewListener {
 
     private List<String> categoryDescriptions() {
         List<String> options = new ArrayList<>();
-        for (ResourceCategory category : session.getCategories().getCategories()) {
+        for (ResourceCategory category : session.getResourceService().listCategories()) {
             options.add(category.getDescription());
         }
         return options;

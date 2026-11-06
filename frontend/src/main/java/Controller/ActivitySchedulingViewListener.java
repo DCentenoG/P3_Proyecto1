@@ -1,10 +1,10 @@
 package Controller;
 
-import Model.Employee;
-import Model.Reservation;
+import Dto.ReservationSummary;
 import Report.ReportException;
 import Report.ReportService;
 import Report.ScheduleReportRow;
+import Service.ServiceException;
 import View.ActivityCalendar;
 import View.ActivitySchedulingView;
 import View.DatePickerDialog;
@@ -38,11 +38,8 @@ public final class ActivitySchedulingViewListener {
     private final ActivitySchedulingView view;
     private final SessionContext session;
 
-    /** Reserva (y su funcionario) detrás de cada celda ocupada de la grilla actual, indexada por "día (0=Domingo)|hora". */
-    private final Map<String, ScheduleEntry> cellIndex = new HashMap<>();
-
-    private record ScheduleEntry(Employee employee, Reservation reservation) {
-    }
+    /** Reserva detrás de cada celda ocupada de la grilla actual, indexada por "día (0=Domingo)|hora". */
+    private final Map<String, ReservationSummary> cellIndex = new HashMap<>();
 
     /**
      * Última semana de referencia realmente buscada (con "Buscar", o la
@@ -90,10 +87,10 @@ public final class ActivitySchedulingViewListener {
                 }
                 String hour = hours.get(modelRow);
                 int dayIndex = modelCol - 1;
-                ScheduleEntry entry = cellIndex.get(dayIndex + "|" + hour);
+                ReservationSummary entry = cellIndex.get(dayIndex + "|" + hour);
                 if (entry != null) {
-                    new ReservationDetailsDialog(SwingUtilities.getWindowAncestor(view),
-                            entry.employee(), entry.reservation()).setVisible(true);
+                    new ReservationDetailsDialog(SwingUtilities.getWindowAncestor(view), entry)
+                            .setVisible(true);
                 }
             }
         });
@@ -156,22 +153,23 @@ public final class ActivitySchedulingViewListener {
         LocalDate weekEnd = weekStart.plusDays(DAY_NAMES.size() - 1);
 
         cellIndex.clear();
-        for (Employee employee : session.getUsers().getListOfEmployees()) {
-            for (Reservation reservation : employee.getReservations()) {
-                // Solo las reservas Aceptadas se muestran de forma global en el sistema.
-                if (!reservation.isAccepted()) {
-                    continue;
-                }
-                LocalDate date = reservation.getDate();
-                if (date.isBefore(weekStart) || date.isAfter(weekEnd)) {
-                    continue;
-                }
-                int dayIndex = ActivityCalendar.dayIndexOf(date); // 0=Domingo..6=Sábado
-                String label = reservation.getActivity() + " - " + employee.getName();
-                for (String hour : CalendarViewListener.hoursBetween(reservation.getStartTime(), reservation.getEndTime())) {
-                    calendar.setActivity(dayIndex, hour, label);
-                    cellIndex.put(dayIndex + "|" + hour, new ScheduleEntry(employee, reservation));
-                }
+
+        // Qué actividades hay en la semana lo resuelve la capa Service; aquí solo
+        // se traduce cada una a celdas de la grilla (qué día y qué horas cubre),
+        // que es lo único propio de la Vista.
+        List<ReservationSummary> activities;
+        try {
+            activities = session.getReservationService().getActivitySchedule(weekStart, weekEnd);
+        } catch (ServiceException ex) {
+            DialogHelper.error(view, ex.getMessage());
+            return;
+        }
+
+        for (ReservationSummary activity : activities) {
+            int dayIndex = ActivityCalendar.dayIndexOf(activity.date()); // 0=Domingo..6=Sábado
+            for (String hour : CalendarViewListener.hoursBetween(activity.startTime(), activity.endTime())) {
+                calendar.setActivity(dayIndex, hour, activity.label());
+                cellIndex.put(dayIndex + "|" + hour, activity);
             }
         }
     }
@@ -213,10 +211,10 @@ public final class ActivitySchedulingViewListener {
         List<String> hours = View.ResourceCalendar.hoursOfDay();
         for (int dayIndex = 0; dayIndex < DAY_NAMES.size(); dayIndex++) {
             for (String hour : hours) {
-                ScheduleEntry entry = cellIndex.get(dayIndex + "|" + hour);
+                ReservationSummary entry = cellIndex.get(dayIndex + "|" + hour);
                 if (entry != null) {
                     rows.add(new ScheduleReportRow(DAY_NAMES.get(dayIndex), hour,
-                            entry.reservation().getActivity(), entry.employee().getName()));
+                            entry.activity(), entry.employeeName()));
                 }
             }
         }

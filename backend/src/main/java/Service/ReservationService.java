@@ -1,5 +1,8 @@
 package Service;
 
+import Dto.ReservationSummary;
+import Dto.ResourceSlot;
+import Dto.StatRow;
 import Model.Employee;
 import Model.RequestNotification;
 import Model.Reservation;
@@ -15,11 +18,13 @@ import Model.exceptions.ResourceUnavailableException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.IsoFields;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /*
 Servicio de dominio de reservas (funcionalidad 2 del enunciado, la de mayor
@@ -244,7 +249,149 @@ public class ReservationService {
         service.save();
     }
 
+    //--- Consultas de calendarizacion y estadisticas ---
+
+    /*
+    Estas cuatro operaciones son las que antes resolvian los Controladores
+    recorriendo en memoria todos los funcionarios y todas sus reservas
+    (StatisticsViewListener, CalendarViewListener y ActivitySchedulingViewListener).
+
+    Son reglas de negocio -- "solo cuentan las reservas Aceptadas", "la semana va
+    de domingo a sabado" -- asi que su lugar es esta capa, no la de Presentacion.
+    Ademas, con el Backend remoto no hay alternativa: traerse por el socket todos
+    los funcionarios con todas sus reservas para que el Frontend sume o filtre
+    seria inviable. Cuando la persistencia pase a Oracle, cada una de estas
+    consultas se convierte en una sentencia SQL.
+
+    Todas devuelven DTOs del paquete Dto, nunca entidades del dominio.
+    */
+
+    /*
+    Franjas ocupadas de cada recurso en un dia (pantalla Calendarizacion). Una
+    reserva con varios recursos produce una franja por recurso. Si
+    categoryDescription no es null, solo se devuelven los recursos de esa
+    categoria.
+    */
+    public List<ResourceSlot> getResourceSchedule(LocalDate date, String categoryDescription)
+            throws ServiceException {
+        if (date == null) {
+            throw new ServiceException("Debe indicar la fecha de la calendarizacion.");
+        }
+        List<ResourceSlot> slots = new ArrayList<>();
+        for (Employee employee : service.getUsers().getListOfEmployees()) {
+            for (Reservation reservation : employee.getReservations()) {
+                // Solo las reservas Aceptadas ocupan recursos y se muestran de forma global.
+                if (!reservation.isAccepted() || !date.equals(reservation.getDate())) {
+                    continue;
+                }
+                ReservationSummary summary = summaryOf(employee, reservation);
+                for (Resource resource : reservation.getAssignedResources()) {
+                    ResourceCategory category = resource.getResourceCategoryReference();
+                    if (categoryDescription != null
+                            && (category == null || !categoryDescription.equals(category.getDescription()))) {
+                        continue;
+                    }
+                    slots.add(new ResourceSlot(resource.getCategoryId(), resource.getId(),
+                            resource.getDescription(), summary));
+                }
+            }
+        }
+        return slots;
+    }
+
+    /*
+    Reservas Aceptadas cuya fecha cae dentro del rango [from, to], ambos
+    inclusive (pantalla Actividades, que muestra una semana completa). A
+    diferencia de getResourceSchedule, aqui cada reserva aparece una sola vez,
+    sin importar cuantos recursos tenga asignados.
+    */
+    public List<ReservationSummary> getActivitySchedule(LocalDate from, LocalDate to) throws ServiceException {
+        if (from == null || to == null) {
+            throw new ServiceException("Debe indicar el rango de fechas de las actividades.");
+        }
+        List<ReservationSummary> activities = new ArrayList<>();
+        for (Employee employee : service.getUsers().getListOfEmployees()) {
+            for (Reservation reservation : employee.getReservations()) {
+                if (!reservation.isAccepted() || !isWithin(reservation.getDate(), from, to)) {
+                    continue;
+                }
+                activities.add(summaryOf(employee, reservation));
+            }
+        }
+        return activities;
+    }
+
+    /*
+    Cuantas veces se uso un recurso de cada categoria, entre las reservas
+    Aceptadas del rango. Una reserva con tres recursos suma uno a la categoria de
+    cada uno. Ordenado alfabeticamente por categoria.
+    */
+    public List<StatRow> getResourceStatistics(LocalDate from, LocalDate to) throws ServiceException {
+        Map<String, Integer> counts = new TreeMap<>();
+        for (Employee employee : service.getUsers().getListOfEmployees()) {
+            for (Reservation reservation : employee.getReservations()) {
+                if (!reservation.isAccepted() || !isWithin(reservation.getDate(), from, to)) {
+                    continue;
+                }
+                for (Resource resource : reservation.getAssignedResources()) {
+                    ResourceCategory category = resource.getResourceCategoryReference();
+                    if (category != null) {
+                        counts.merge(category.getDescription(), 1, Integer::sum);
+                    }
+                }
+            }
+        }
+        return toStatRows(counts);
+    }
+
+    /*
+    Cuantas actividades hubo en cada semana del rango, entre las reservas
+    Aceptadas. La etiqueta es "Semana <numero>-<anio>" segun la norma ISO-8601.
+    Ordenado alfabeticamente por etiqueta, igual que antes.
+    */
+    public List<StatRow> getWeeklyStatistics(LocalDate from, LocalDate to) throws ServiceException {
+        Map<String, Integer> counts = new TreeMap<>();
+        for (Employee employee : service.getUsers().getListOfEmployees()) {
+            for (Reservation reservation : employee.getReservations()) {
+                if (!reservation.isAccepted() || !isWithin(reservation.getDate(), from, to)) {
+                    continue;
+                }
+                LocalDate date = reservation.getDate();
+                counts.merge("Semana " + date.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR) + "-" + date.getYear(),
+                        1, Integer::sum);
+            }
+        }
+        return toStatRows(counts);
+    }
+
     //--- Utilidades ---
+
+    /* Arma el resumen de una reserva: lo unico que la capa de Presentacion necesita ver de ella. */
+    private static ReservationSummary summaryOf(Employee employee, Reservation reservation) {
+        List<String> resourceDescriptions = new ArrayList<>();
+        for (Resource resource : reservation.getAssignedResources()) {
+            resourceDescriptions.add(resource.getDescription());
+        }
+        return new ReservationSummary(reservation.getId(), reservation.getActivity(), employee.getName(),
+                reservation.getDate(), reservation.getStartTime(), reservation.getEndTime(),
+                resourceDescriptions);
+    }
+
+    /* Un limite null significa "sin limite por ese lado". */
+    private static boolean isWithin(LocalDate date, LocalDate from, LocalDate to) {
+        if (date == null) {
+            return false;
+        }
+        return (from == null || !date.isBefore(from)) && (to == null || !date.isAfter(to));
+    }
+
+    private static List<StatRow> toStatRows(Map<String, Integer> counts) {
+        List<StatRow> rows = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : counts.entrySet()) {
+            rows.add(new StatRow(entry.getKey(), entry.getValue()));
+        }
+        return rows;
+    }
 
     /* Orden del sidebar: no vistas (mas reciente primero), luego vistas (marcada mas recientemente primero). */
     private static final Comparator<PendingRequest> NOTIFICATION_ORDER = Comparator

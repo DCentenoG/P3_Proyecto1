@@ -161,7 +161,7 @@ public final class ReservationsViewListener {
     // ------------------------------------------------------------------
 
     private void loadCategoryOptions() {
-        ReservationFormSupport.loadCategoryOptions(view.getCategoryCombo(), session.getCategories().getCategories());
+        ReservationFormSupport.loadCategoryOptions(view.getCategoryCombo(), session.getResourceService().listCategories());
     }
 
     private void onAddCategory() {
@@ -181,7 +181,7 @@ public final class ReservationsViewListener {
         ReservationFormSupport.fillFromPhrase(view, aiExtractionService, view.getPhraseField(), view.getAiButton(),
                 new ReservationFormSupport.FormFields(view.getActivityField(), view.getDateField(),
                         view.getStartTimeField(), view.getEndTimeField(), view.getCategoriesTable()),
-                session.getCategories().getCategories());
+                session.getResourceService().listCategories());
     }
 
     // ------------------------------------------------------------------

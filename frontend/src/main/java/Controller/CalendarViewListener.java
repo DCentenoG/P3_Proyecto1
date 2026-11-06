@@ -1,12 +1,13 @@
 package Controller;
 
-import Model.Employee;
-import Model.Reservation;
+import Dto.ReservationSummary;
+import Dto.ResourceSlot;
 import Model.Resource;
 import Model.ResourceCategory;
 import Report.ReportException;
 import Report.ReportService;
 import Report.ScheduleReportRow;
+import Service.ServiceException;
 import View.CalendarView;
 import View.DatePickerDialog;
 import View.FilterBuilder;
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Maneja los eventos de {@link CalendarView}: la búsqueda por fecha y/o
@@ -40,11 +42,8 @@ public final class CalendarViewListener {
     private final CalendarView view;
     private final SessionContext session;
 
-    /** Reserva (y su funcionario) detrás de cada celda ocupada de la grilla actual, indexada por "índice de recurso|hora". */
-    private final Map<String, ScheduleEntry> cellIndex = new HashMap<>();
-
-    private record ScheduleEntry(Employee employee, Reservation reservation) {
-    }
+    /** Reserva detrás de cada celda ocupada de la grilla actual, indexada por "índice de recurso|hora". */
+    private final Map<String, ReservationSummary> cellIndex = new HashMap<>();
 
     /**
      * Última búsqueda realmente aplicada (con "Buscar", o la carga
@@ -105,10 +104,10 @@ public final class CalendarViewListener {
                 }
                 String hour = hours.get(modelRow);
                 int resourceIndex = modelCol - 1;
-                ScheduleEntry entry = cellIndex.get(resourceIndex + "|" + hour);
+                ReservationSummary entry = cellIndex.get(resourceIndex + "|" + hour);
                 if (entry != null) {
-                    new ReservationDetailsDialog(SwingUtilities.getWindowAncestor(view),
-                            entry.employee(), entry.reservation()).setVisible(true);
+                    new ReservationDetailsDialog(SwingUtilities.getWindowAncestor(view), entry)
+                            .setVisible(true);
                 }
             }
         });
@@ -120,7 +119,7 @@ public final class CalendarViewListener {
         Object previousSelection = combo.getSelectedItem();
         combo.removeAllItems();
         combo.addItem(FilterBuilder.NO_FILTER);
-        for (ResourceCategory category : session.getCategories().getCategories()) {
+        for (ResourceCategory category : session.getResourceService().listCategories()) {
             combo.addItem(category.getDescription());
         }
         if (previousSelection != null) {
@@ -185,7 +184,7 @@ public final class CalendarViewListener {
 
     private void runSearch() {
         List<Resource> resources = new ArrayList<>();
-        for (ResourceCategory category : session.getCategories().getCategories()) {
+        for (ResourceCategory category : session.getResourceService().listCategories()) {
             if (activeCategory != null && !category.getDescription().equals(activeCategory)) {
                 continue;
             }
@@ -203,32 +202,42 @@ public final class CalendarViewListener {
         currentResources = resources;
     }
 
+    /**
+     * Pinta en la grilla las franjas ocupadas del día. Quién ocupa qué lo
+     * resuelve la capa Service ({@code getResourceSchedule}); aquí solo se
+     * traduce cada franja a celdas de la grilla, que es lo único propio de la
+     * Vista: a qué columna corresponde el recurso y qué horas cubre.
+     */
     private void applySchedule(ResourceCalendar calendar, List<Resource> resources, LocalDate date) {
         cellIndex.clear();
-        for (Employee employee : session.getUsers().getListOfEmployees()) {
-            for (Reservation reservation : employee.getReservations()) {
-                // Solo las reservas Aceptadas ocupan recursos y se muestran en la calendarización.
-                if (!reservation.isAccepted() || !reservation.getDate().equals(date)) {
-                    continue;
-                }
-                for (Resource resource : reservation.getAssignedResources()) {
-                    int columnIndex = indexOf(resources, resource);
-                    if (columnIndex < 0) {
-                        continue;
-                    }
-                    String label = reservation.getActivity() + " - " + employee.getName();
-                    for (String hour : hoursBetween(reservation.getStartTime(), reservation.getEndTime())) {
-                        calendar.setSchedule(columnIndex, hour, label);
-                        cellIndex.put(columnIndex + "|" + hour, new ScheduleEntry(employee, reservation));
-                    }
-                }
+
+        List<ResourceSlot> slots;
+        try {
+            slots = session.getReservationService().getResourceSchedule(date, activeCategory);
+        } catch (ServiceException ex) {
+            DialogHelper.error(view, ex.getMessage());
+            return;
+        }
+
+        for (ResourceSlot slot : slots) {
+            int columnIndex = indexOf(resources, slot);
+            if (columnIndex < 0) {
+                continue;
+            }
+            ReservationSummary reservation = slot.reservation();
+            for (String hour : hoursBetween(reservation.startTime(), reservation.endTime())) {
+                calendar.setSchedule(columnIndex, hour, reservation.label());
+                cellIndex.put(columnIndex + "|" + hour, reservation);
             }
         }
     }
 
-    private static int indexOf(List<Resource> resources, Resource target) {
+    /** Columna de la grilla que le corresponde al recurso de la franja, o -1 si no está mostrándose. */
+    private static int indexOf(List<Resource> resources, ResourceSlot slot) {
         for (int i = 0; i < resources.size(); i++) {
-            if (resources.get(i).isSameResource(target)) {
+            Resource resource = resources.get(i);
+            if (resource.getId() == slot.resourceId()
+                    && Objects.equals(resource.getCategoryId(), slot.categoryId())) {
                 return i;
             }
         }
@@ -283,10 +292,10 @@ public final class CalendarViewListener {
         for (int resourceIndex = 0; resourceIndex < currentResources.size(); resourceIndex++) {
             Resource resource = currentResources.get(resourceIndex);
             for (String hour : hours) {
-                ScheduleEntry entry = cellIndex.get(resourceIndex + "|" + hour);
+                ReservationSummary entry = cellIndex.get(resourceIndex + "|" + hour);
                 if (entry != null) {
                     rows.add(new ScheduleReportRow(resource.getDescription(), hour,
-                            entry.reservation().getActivity(), entry.employee().getName()));
+                            entry.activity(), entry.employeeName()));
                 }
             }
         }

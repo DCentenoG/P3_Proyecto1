@@ -1,8 +1,6 @@
 package View;
 
-import Model.Employee;
-import Model.Reservation;
-import Model.Resource;
+import Dto.ReservationSummary;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -15,7 +13,6 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Window;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -24,13 +21,17 @@ import java.util.List;
  * de {@link ResourceCalendar} (Calendarización) o {@link ActivityCalendar}
  * (Actividades): funcionario, actividad, fecha, horario y recursos
  * asignados.
+ * <p>
+ * Recibe un {@link ReservationSummary} y no las entidades del dominio: esta
+ * ventana es solo de lectura y el Backend remoto le manda exactamente estos
+ * datos, sin que la Vista tenga que conocer Employee ni Reservation.
  */
 public class ReservationDetailsDialog extends JDialog {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
 
-    public ReservationDetailsDialog(Window owner, Employee employee, Reservation reservation) {
+    public ReservationDetailsDialog(Window owner, ReservationSummary reservation) {
         super(owner, "Detalle de la actividad", ModalityType.APPLICATION_MODAL);
         setResizable(false);
 
@@ -46,14 +47,14 @@ public class ReservationDetailsDialog extends JDialog {
 
         int row = 0;
         gbc.gridy = row++;
-        content.add(fieldRow("Actividad", reservation.getActivity()), gbc);
+        content.add(fieldRow("Actividad", reservation.activity()), gbc);
         gbc.gridy = row++;
-        content.add(fieldRow("Funcionario", employee.getName()), gbc);
+        content.add(fieldRow("Funcionario", reservation.employeeName()), gbc);
         gbc.gridy = row++;
-        content.add(fieldRow("Fecha", reservation.getDate().format(DATE_FORMAT)), gbc);
+        content.add(fieldRow("Fecha", reservation.date().format(DATE_FORMAT)), gbc);
         gbc.gridy = row++;
-        content.add(fieldRow("Horario", reservation.getStartTime().format(TIME_FORMAT) + " - "
-                + reservation.getEndTime().format(TIME_FORMAT)), gbc);
+        content.add(fieldRow("Horario", reservation.startTime().format(TIME_FORMAT) + " - "
+                + reservation.endTime().format(TIME_FORMAT)), gbc);
         gbc.gridy = row++;
         content.add(fieldRow("Recursos", describeResources(reservation)), gbc);
 
@@ -81,11 +82,8 @@ public class ReservationDetailsDialog extends JDialog {
         return row;
     }
 
-    private static String describeResources(Reservation reservation) {
-        List<String> descriptions = new ArrayList<>();
-        for (Resource resource : reservation.getAssignedResources()) {
-            descriptions.add(resource.getDescription());
-        }
-        return descriptions.isEmpty() ? "(ninguno)" : String.join(", ", descriptions);
+    private static String describeResources(ReservationSummary reservation) {
+        List<String> descriptions = reservation.resourceDescriptions();
+        return (descriptions == null || descriptions.isEmpty()) ? "(ninguno)" : String.join(", ", descriptions);
     }
 }

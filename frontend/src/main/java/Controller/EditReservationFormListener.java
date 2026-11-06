@@ -35,7 +35,7 @@ public final class EditReservationFormListener {
         this.session = session;
         this.reservation = reservation;
         this.afterSave = (afterSave != null) ? afterSave : () -> { };
-        ReservationFormSupport.loadCategoryOptions(form.getCategoryCombo(), session.getCategories().getCategories());
+        ReservationFormSupport.loadCategoryOptions(form.getCategoryCombo(), session.getResourceService().listCategories());
         loadReservation();
         wire();
     }
@@ -66,7 +66,7 @@ public final class EditReservationFormListener {
         ReservationFormSupport.fillFromPhrase(form, aiExtractionService, form.getPhraseField(), form.getAiButton(),
                 new ReservationFormSupport.FormFields(form.getActivityField(), form.getDateField(),
                         form.getStartTimeField(), form.getEndTimeField(), form.getCategoriesTable()),
-                session.getCategories().getCategories());
+                session.getResourceService().listCategories());
     }
 
     /** Precarga el formulario con los datos actuales de la reserva. */
