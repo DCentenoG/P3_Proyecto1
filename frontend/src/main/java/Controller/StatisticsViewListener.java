@@ -107,8 +107,8 @@ public final class StatisticsViewListener {
         List<StatRow> rows;
         try {
             rows = byCategory
-                    ? session.getReservationService().getResourceStatistics(start, end)
-                    : session.getReservationService().getWeeklyStatistics(start, end);
+                    ? session.getService().getResourceStatistics(start, end)
+                    : session.getService().getWeeklyStatistics(start, end);
         } catch (ServiceException ex) {
             DialogHelper.error(view, ex.getMessage());
             return;

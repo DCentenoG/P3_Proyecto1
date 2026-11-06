@@ -119,7 +119,7 @@ public final class CalendarViewListener {
         Object previousSelection = combo.getSelectedItem();
         combo.removeAllItems();
         combo.addItem(FilterBuilder.NO_FILTER);
-        for (ResourceCategory category : session.getResourceService().listCategories()) {
+        for (ResourceCategory category : categoriesOrEmpty(view)) {
             combo.addItem(category.getDescription());
         }
         if (previousSelection != null) {
@@ -184,7 +184,7 @@ public final class CalendarViewListener {
 
     private void runSearch() {
         List<Resource> resources = new ArrayList<>();
-        for (ResourceCategory category : session.getResourceService().listCategories()) {
+        for (ResourceCategory category : categoriesOrEmpty(view)) {
             if (activeCategory != null && !category.getDescription().equals(activeCategory)) {
                 continue;
             }
@@ -213,7 +213,7 @@ public final class CalendarViewListener {
 
         List<ResourceSlot> slots;
         try {
-            slots = session.getReservationService().getResourceSchedule(date, activeCategory);
+            slots = session.getService().getResourceSchedule(date, activeCategory);
         } catch (ServiceException ex) {
             DialogHelper.error(view, ex.getMessage());
             return;
@@ -302,4 +302,19 @@ public final class CalendarViewListener {
         return rows;
     }
 
+
+    /**
+     * Categorías disponibles, o lista vacía si la consulta falla. Toda llamada
+     * a {@link Service.IService} puede fallar —hoy por un error de datos,
+     * mañana porque el Backend no responde—, así que el Controlador traduce ese
+     * fallo a un diálogo y sigue con la pantalla utilizable.
+     */
+    private java.util.List<Model.ResourceCategory> categoriesOrEmpty(java.awt.Component parent) {
+        try {
+            return session.getService().listCategories();
+        } catch (Service.ServiceException ex) {
+            DialogHelper.error(parent, ex.getMessage());
+            return java.util.List.of();
+        }
+    }
 }

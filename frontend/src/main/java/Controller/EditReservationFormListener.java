@@ -1,7 +1,6 @@
 package Controller;
 
 import Model.Reservation;
-import Service.AIReservationExtractionService;
 import Service.ServiceException;
 import View.EditReservationForm;
 
@@ -24,7 +23,6 @@ public final class EditReservationFormListener {
 
     // Misma IA que usa "Nueva reserva": solo interpreta la frase y llena
     // texto; validar y guardar sigue en ReservationService.
-    private final AIReservationExtractionService aiExtractionService = new AIReservationExtractionService();
 
     /** Se invoca después de guardar los cambios, para que la vista que abrió el formulario se refresque. */
     private final Runnable afterSave;
@@ -35,7 +33,7 @@ public final class EditReservationFormListener {
         this.session = session;
         this.reservation = reservation;
         this.afterSave = (afterSave != null) ? afterSave : () -> { };
-        ReservationFormSupport.loadCategoryOptions(form.getCategoryCombo(), session.getResourceService().listCategories());
+        ReservationFormSupport.loadCategoryOptions(form.getCategoryCombo(), categoriesOrEmpty(form));
         loadReservation();
         wire();
     }
@@ -63,10 +61,10 @@ public final class EditReservationFormListener {
      * la reserva se conserva.
      */
     private void onAiFill() {
-        ReservationFormSupport.fillFromPhrase(form, aiExtractionService, form.getPhraseField(), form.getAiButton(),
+        ReservationFormSupport.fillFromPhrase(form, session.getService(), form.getPhraseField(), form.getAiButton(),
                 new ReservationFormSupport.FormFields(form.getActivityField(), form.getDateField(),
                         form.getStartTimeField(), form.getEndTimeField(), form.getCategoriesTable()),
-                session.getResourceService().listCategories());
+                categoriesOrEmpty(form));
     }
 
     /** Precarga el formulario con los datos actuales de la reserva. */
@@ -96,7 +94,7 @@ public final class EditReservationFormListener {
         // juntan los datos del formulario y se traduce el resultado a diálogos.
         // Si falla, el formulario queda abierto para que el funcionario corrija.
         try {
-            session.getReservationService().editReservation(session.getCurrentUser().getId(), reservation.getId(),
+            session.getService().editReservation(session.getCurrentUser().getId(), reservation.getId(),
                     input.activity(), input.date(), input.startTime(), input.endTime(), input.categories());
         } catch (ServiceException ex) {
             DialogHelper.error(form, ex.getMessage());
@@ -107,5 +105,20 @@ public final class EditReservationFormListener {
                 + "\"En revisión\" hasta que un administrador la apruebe de nuevo.");
         form.dispose();
         afterSave.run();
+    }
+
+    /**
+     * Categorías disponibles, o lista vacía si la consulta falla. Toda llamada
+     * a {@link Service.IService} puede fallar —hoy por un error de datos,
+     * mañana porque el Backend no responde—, así que el Controlador traduce ese
+     * fallo a un diálogo y sigue con la pantalla utilizable.
+     */
+    private java.util.List<Model.ResourceCategory> categoriesOrEmpty(java.awt.Component parent) {
+        try {
+            return session.getService().listCategories();
+        } catch (Service.ServiceException ex) {
+            DialogHelper.error(parent, ex.getMessage());
+            return java.util.List.of();
+        }
     }
 }

@@ -1,5 +1,6 @@
 package Service;
 
+import Dto.PendingRequest;
 import Dto.ReservationSummary;
 import Dto.ResourceSlot;
 import Dto.StatRow;
@@ -47,8 +48,12 @@ public class ReservationService {
 
     private final Service service;
 
-    /* Una solicitud pendiente de revision junto con el funcionario que la hizo. */
-    public record PendingRequest(Employee employee, Reservation reservation) {
+    /*
+    Par interno (funcionario, reserva) que se usa solo para poder ordenar las
+    solicitudes por su notificacion antes de convertirlas al DTO que sale de
+    esta capa. No se expone: hacia afuera viaja Dto.PendingRequest.
+    */
+    private record PendingPair(Employee employee, Reservation reservation) {
     }
 
     public ReservationService(Service service) {
@@ -157,16 +162,24 @@ public class ReservationService {
     de su grupo.
     */
     public List<PendingRequest> listPendingRequests() {
-        List<PendingRequest> pending = new ArrayList<>();
+        List<PendingPair> pending = new ArrayList<>();
         for (Employee employee : service.getUsers().getListOfEmployees()) {
             for (Reservation reservation : employee.getReservations()) {
                 if (reservation.getState() == State.IN_REVIEW) {
-                    pending.add(new PendingRequest(employee, reservation));
+                    pending.add(new PendingPair(employee, reservation));
                 }
             }
         }
         pending.sort(NOTIFICATION_ORDER);
-        return pending;
+
+        // El orden ya quedo resuelto aqui: la Vista pinta la lista tal cual.
+        List<PendingRequest> requests = new ArrayList<>();
+        for (PendingPair pair : pending) {
+            requests.add(new PendingRequest(pair.employee().getId(),
+                    summaryOf(pair.employee(), pair.reservation()),
+                    pair.reservation().getNotification().isSeen()));
+        }
+        return requests;
     }
 
     /*
@@ -394,9 +407,9 @@ public class ReservationService {
     }
 
     /* Orden del sidebar: no vistas (mas reciente primero), luego vistas (marcada mas recientemente primero). */
-    private static final Comparator<PendingRequest> NOTIFICATION_ORDER = Comparator
-            .comparing((PendingRequest request) -> request.reservation().getNotification().isSeen())
-            .thenComparing(request -> sortTimeOf(request.reservation().getNotification()),
+    private static final Comparator<PendingPair> NOTIFICATION_ORDER = Comparator
+            .comparing((PendingPair pair) -> pair.reservation().getNotification().isSeen())
+            .thenComparing(pair -> sortTimeOf(pair.reservation().getNotification()),
                     Comparator.nullsLast(Comparator.reverseOrder()));
 
     /* Momento que ordena una notificacion dentro de su grupo: cuando entro (no vista) o cuando se vio (vista). */

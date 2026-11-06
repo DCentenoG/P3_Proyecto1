@@ -47,7 +47,7 @@ public final class PasswordChangeFormListener {
         }
 
         try {
-            session.getUserService().changePassword(user, current, newPassword);
+            session.getService().changePassword(user.getId(), current, newPassword);
         } catch (ServiceException ex) {
             DialogHelper.error(view, ex.getMessage());
             return;

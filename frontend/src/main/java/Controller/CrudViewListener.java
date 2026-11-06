@@ -186,7 +186,7 @@ public final class CrudViewListener {
     private void searchEmployees(FilterSnapshot filters) {
         String idFilter = filters.getTextValue("ID");
         String nameFilter = filters.getTextValue("Nombre");
-        for (Employee employee : session.getUserService().listEmployees()) {
+        for (Employee employee : employeesOrEmpty()) {
             boolean matchesId = !nonBlank(idFilter) || String.valueOf(employee.getId()).equals(idFilter.trim());
             boolean matchesName = !nonBlank(nameFilter)
                     || employee.getName().toLowerCase(Locale.ROOT).contains(nameFilter.trim().toLowerCase(Locale.ROOT));
@@ -198,7 +198,7 @@ public final class CrudViewListener {
 
     private void searchCategories(FilterSnapshot filters) {
         String descriptionFilter = filters.getTextValue("Descripción");
-        for (ResourceCategory category : session.getResourceService().listCategories()) {
+        for (ResourceCategory category : categoriesOrEmpty(view)) {
             if (!nonBlank(descriptionFilter) || containsIgnoreCase(category.getDescription(), descriptionFilter)) {
                 currentResults.add(category);
             }
@@ -211,7 +211,7 @@ public final class CrudViewListener {
                 ? selectedCategory.toString() : null;
         String descriptionFilter = filters.getTextValue("Descripción");
 
-        for (ResourceCategory category : session.getResourceService().listCategories()) {
+        for (ResourceCategory category : categoriesOrEmpty(view)) {
             if (categoryFilter != null && !category.getDescription().equals(categoryFilter)) {
                 continue;
             }
@@ -300,7 +300,7 @@ public final class CrudViewListener {
 
     private List<String> categoryDescriptions() {
         List<String> options = new ArrayList<>();
-        for (ResourceCategory category : session.getResourceService().listCategories()) {
+        for (ResourceCategory category : categoriesOrEmpty(view)) {
             options.add(category.getDescription());
         }
         return options;
@@ -384,9 +384,9 @@ public final class CrudViewListener {
 
         try {
             if (existing != null) {
-                session.getUserService().updateEmployee(existing.getId(), name, phone);
+                session.getService().updateEmployee(existing.getId(), name, phone);
             } else {
-                session.getUserService().addEmployee(name, phone);
+                session.getService().addEmployee(name, phone);
             }
         } catch (ServiceException ex) {
             DialogHelper.error(dialog, ex.getMessage());
@@ -407,9 +407,9 @@ public final class CrudViewListener {
 
         try {
             if (existing != null) {
-                session.getResourceService().updateCategory(existing.getId(), existing.getDescription(), description);
+                session.getService().updateCategory(existing.getId(), existing.getDescription(), description);
             } else {
-                session.getResourceService().addCategory(description);
+                session.getService().addCategory(description);
             }
         } catch (ServiceException ex) {
             DialogHelper.error(dialog, ex.getMessage());
@@ -437,12 +437,12 @@ public final class CrudViewListener {
                 throw new ServiceException("Debe seleccionar una categoria para el recurso.");
             }
             ResourceCategory targetCategory =
-                    session.getResourceService().findCategoryByDescription(selectedCategory.toString());
+                    session.getService().findCategoryByDescription(selectedCategory.toString());
             if (existing != null) {
-                session.getResourceService().updateResource(existing.getCategoryId(), existing.getId(),
+                session.getService().updateResource(existing.getCategoryId(), existing.getId(),
                         targetCategory.getId(), id, description);
             } else {
-                session.getResourceService().addResource(targetCategory.getDescription(), id, description);
+                session.getService().addResource(targetCategory.getDescription(), id, description);
             }
         } catch (ServiceException ex) {
             DialogHelper.error(dialog, ex.getMessage());
@@ -473,17 +473,17 @@ public final class CrudViewListener {
             switch (entityType) {
                 case FUNCIONARIO -> {
                     Employee employee = (Employee) entity;
-                    session.getUserService().removeEmployee(employee.getName(), employee.getPhoneNumber());
+                    session.getService().removeEmployee(employee.getName(), employee.getPhoneNumber());
                 }
                 case CATEGORIA -> {
                     ResourceCategory category = (ResourceCategory) entity;
-                    session.getResourceService().removeCategory(category.getId(), category.getDescription());
+                    session.getService().removeCategory(category.getId(), category.getDescription());
                     afterCategoryChange.run();
                 }
                 case RECURSO -> {
                     Resource resource = (Resource) entity;
                     ResourceCategory category = resource.getResourceCategoryReference();
-                    session.getResourceService().removeResource(
+                    session.getService().removeResource(
                             category.getDescription(), resource.getId(), resource.getDescription());
                 }
             }
@@ -607,6 +607,31 @@ public final class CrudViewListener {
 
         Object getSelectedValue(String label) {
             return values.get(label);
+        }
+    }
+
+    /**
+     * Categorías disponibles, o lista vacía si la consulta falla. Toda llamada
+     * a {@link Service.IService} puede fallar —hoy por un error de datos,
+     * mañana porque el Backend no responde—, así que el Controlador traduce ese
+     * fallo a un diálogo y sigue con la pantalla utilizable.
+     */
+    private java.util.List<Model.ResourceCategory> categoriesOrEmpty(java.awt.Component parent) {
+        try {
+            return session.getService().listCategories();
+        } catch (Service.ServiceException ex) {
+            DialogHelper.error(parent, ex.getMessage());
+            return java.util.List.of();
+        }
+    }
+
+    /** Funcionarios, o lista vacía si la consulta falla (ver {@link #categoriesOrEmpty}). */
+    private java.util.List<Employee> employeesOrEmpty() {
+        try {
+            return session.getService().listEmployees();
+        } catch (Service.ServiceException ex) {
+            DialogHelper.error(view, ex.getMessage());
+            return java.util.List.of();
         }
     }
 }

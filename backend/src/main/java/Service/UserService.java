@@ -40,10 +40,13 @@ public class UserService {
         throw new ServiceException("No existe ningun usuario registrado con el id indicado.");
     }
 
-    public void changePassword(User user, String currentPassword, String newPassword) throws ServiceException {
-        if (user == null) {
-            throw new ServiceException("Debe indicar el usuario al que se le cambiara la clave.");
-        }
+    /*
+    Recibe el id del usuario y no el objeto: el Frontend solo tiene una copia de
+    lo que le mando el Backend, asi que cambiarle la clave a esa copia no
+    cambiaria nada del lado del servidor.
+    */
+    public void changePassword(int userId, String currentPassword, String newPassword) throws ServiceException {
+        User user = findUserById(userId);
         if (!user.getPassword().equals(currentPassword)) {
             throw new ServiceException("La clave actual ingresada no es correcta.");
         }
@@ -53,6 +56,16 @@ public class UserService {
 
         user.setPassword(newPassword);
         service.save();
+    }
+
+    /** Usuario con ese id, sea administrador o funcionario. */
+    private User findUserById(int userId) throws ServiceException {
+        for (User user : service.getUsers().getUsers()) {
+            if (user.getId() == userId) {
+                return user;
+            }
+        }
+        throw new ServiceException("No existe ningun usuario registrado con el id '" + userId + "'.");
     }
 
     //--- Funcionarios ---

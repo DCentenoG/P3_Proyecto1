@@ -7,7 +7,6 @@ import Model.State;
 import Report.ReportException;
 import Report.ReportService;
 import Report.ReservationReportRow;
-import Service.AIReservationExtractionService;
 import Service.ServiceException;
 import View.EditReservationForm;
 import View.RejectionReasonDialog;
@@ -29,7 +28,7 @@ import java.util.Map;
 /**
  * Maneja los eventos de {@link ReservationsView}: el botón de ayuda "?"
  * (explica el llenado por IA), el llenado automático por IA a partir de
- * la "Frase" (ver {@link AIReservationExtractionService}), y las
+ * la "Frase" (ver {@link Service.IService#extractReservationFromPhrase}), y las
  * acciones de Guardar, Editar, Cancelar y Limpiar de la sección "Nueva
  * reserva". Los selectores, la minitabla de categorías y la validación
  * del formulario se comparten con "Editar reserva" (ver
@@ -56,7 +55,6 @@ public final class ReservationsViewListener {
     // La IA solo interpreta la frase y llena texto; no valida disponibilidad
     // ni existencia de categorías (eso sigue en ReservationService), así que
     // no necesita compartir la instancia de Service del resto del programa.
-    private final AIReservationExtractionService aiExtractionService = new AIReservationExtractionService();
 
     /**
      * Se invoca tras crear o cancelar una reserva, para que Calendarización
@@ -161,7 +159,7 @@ public final class ReservationsViewListener {
     // ------------------------------------------------------------------
 
     private void loadCategoryOptions() {
-        ReservationFormSupport.loadCategoryOptions(view.getCategoryCombo(), session.getResourceService().listCategories());
+        ReservationFormSupport.loadCategoryOptions(view.getCategoryCombo(), categoriesOrEmpty(view));
     }
 
     private void onAddCategory() {
@@ -178,10 +176,10 @@ public final class ReservationsViewListener {
 
     /** El llenado en sí (hilo aparte, avisos, normalización de categorías) está en {@link ReservationFormSupport}. */
     private void onAiFill() {
-        ReservationFormSupport.fillFromPhrase(view, aiExtractionService, view.getPhraseField(), view.getAiButton(),
+        ReservationFormSupport.fillFromPhrase(view, session.getService(), view.getPhraseField(), view.getAiButton(),
                 new ReservationFormSupport.FormFields(view.getActivityField(), view.getDateField(),
                         view.getStartTimeField(), view.getEndTimeField(), view.getCategoriesTable()),
-                session.getResourceService().listCategories());
+                categoriesOrEmpty(view));
     }
 
     // ------------------------------------------------------------------
@@ -206,7 +204,7 @@ public final class ReservationsViewListener {
         // Model.Employee#tryBook): el Controller solo junta los datos del
         // formulario y traduce el resultado a diálogos, como corresponde en MVC.
         try {
-            session.getReservationService().createReservation(employee.getId(), input.activity(), input.date(),
+            session.getService().createReservation(employee.getId(), input.activity(), input.date(),
                     input.startTime(), input.endTime(), input.categories());
         } catch (ServiceException ex) {
             DialogHelper.error(view, ex.getMessage());
@@ -261,7 +259,7 @@ public final class ReservationsViewListener {
 
         Reservation toCancel = employee.getReservations().get(row);
         try {
-            session.getReservationService().cancelReservation(employee.getId(), toCancel.getId());
+            session.getService().cancelReservation(employee.getId(), toCancel.getId());
         } catch (ServiceException ex) {
             DialogHelper.error(view, ex.getMessage());
             return;
@@ -366,4 +364,19 @@ public final class ReservationsViewListener {
         return rows;
     }
 
+
+    /**
+     * Categorías disponibles, o lista vacía si la consulta falla. Toda llamada
+     * a {@link Service.IService} puede fallar —hoy por un error de datos,
+     * mañana porque el Backend no responde—, así que el Controlador traduce ese
+     * fallo a un diálogo y sigue con la pantalla utilizable.
+     */
+    private java.util.List<Model.ResourceCategory> categoriesOrEmpty(java.awt.Component parent) {
+        try {
+            return session.getService().listCategories();
+        } catch (Service.ServiceException ex) {
+            DialogHelper.error(parent, ex.getMessage());
+            return java.util.List.of();
+        }
+    }
 }

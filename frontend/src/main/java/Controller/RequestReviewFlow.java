@@ -1,10 +1,9 @@
 package Controller;
 
-import Model.Employee;
-import Model.Reservation;
 import Model.Resource;
 import Model.ResourceCategory;
-import Service.ReservationService.PendingRequest;
+import Dto.PendingRequest;
+import Dto.ReservationSummary;
 import Service.ServiceException;
 import View.RejectRequestForm;
 import View.ReviewRequestForm;
@@ -66,8 +65,8 @@ final class RequestReviewFlow {
     private void showReviewForm(Component parent) {
         Map<ResourceCategory, List<Resource>> available;
         try {
-            available = session.getReservationService()
-                    .availableResourcesFor(request.employee().getId(), request.reservation().getId());
+            available = session.getService()
+                    .availableResourcesFor(request.employeeId(), request.reservationId());
         } catch (ServiceException ex) {
             DialogHelper.error(parent, ex.getMessage());
             return;
@@ -83,13 +82,13 @@ final class RequestReviewFlow {
 
     /** Carga los datos de la solicitud (solo lectura) y, por categoría, los recursos libres para elegir. */
     private void loadRequest(ReviewRequestForm form, Map<ResourceCategory, List<Resource>> available) {
-        Reservation reservation = request.reservation();
-        form.setEmployeeId(String.valueOf(request.employee().getId()));
-        form.setEmployeeName(request.employee().getName());
-        form.setActivity(reservation.getActivity());
-        form.setDate(reservation.getDate().format(DATE_FORMAT));
-        form.setStartTime(reservation.getStartTime().format(TIME_FORMAT));
-        form.setEndTime(reservation.getEndTime().format(TIME_FORMAT));
+        ReservationSummary reservation = request.reservation();
+        form.setEmployeeId(String.valueOf(request.employeeId()));
+        form.setEmployeeName(request.employeeName());
+        form.setActivity(reservation.activity());
+        form.setDate(reservation.date().format(DATE_FORMAT));
+        form.setStartTime(reservation.startTime().format(TIME_FORMAT));
+        form.setEndTime(reservation.endTime().format(TIME_FORMAT));
 
         List<String> categoryNames = new ArrayList<>();
         for (ResourceCategory category : available.keySet()) {
@@ -134,8 +133,8 @@ final class RequestReviewFlow {
         }
 
         try {
-            session.getReservationService()
-                    .approveRequest(request.employee().getId(), request.reservation().getId(), chosen);
+            session.getService()
+                    .approveRequest(request.employeeId(), request.reservationId(), chosen);
         } catch (ServiceException ex) {
             DialogHelper.error(form, ex.getMessage());
             return;
@@ -175,8 +174,8 @@ final class RequestReviewFlow {
         }
 
         try {
-            session.getReservationService()
-                    .rejectRequest(request.employee().getId(), request.reservation().getId(), reason);
+            session.getService()
+                    .rejectRequest(request.employeeId(), request.reservationId(), reason);
         } catch (ServiceException ex) {
             DialogHelper.error(form, ex.getMessage());
             return;
@@ -192,10 +191,9 @@ final class RequestReviewFlow {
     // ------------------------------------------------------------------
 
     private static String summaryOf(PendingRequest request) {
-        Employee employee = request.employee();
-        Reservation reservation = request.reservation();
-        return employee.getName() + " · " + reservation.getActivity() + " · "
-                + reservation.getDate().format(DATE_FORMAT) + " · "
-                + reservation.getStartTime().format(TIME_FORMAT) + " - " + reservation.getEndTime().format(TIME_FORMAT);
+        ReservationSummary reservation = request.reservation();
+        return request.employeeName() + " · " + reservation.activity() + " · "
+                + reservation.date().format(DATE_FORMAT) + " · "
+                + reservation.startTime().format(TIME_FORMAT) + " - " + reservation.endTime().format(TIME_FORMAT);
     }
 }

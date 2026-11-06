@@ -1,12 +1,13 @@
 package Controller;
 
 import Model.User;
+import Service.ServiceException;
 import View.LoginFrame;
 import View.MainFrame;
 
 /**
  * Maneja los eventos de {@link LoginFrame}: valida que se hayan
- * completado el ID y la clave, autentica contra la {@link SessionContext}
+ * completado el ID y la clave, autentica contra el {@link Service.IService}
  * y, de ser correctos, abre {@link MainFrame} (con su propio
  * {@link MainFrameListener}) para el usuario autenticado.
  */
@@ -43,9 +44,13 @@ public final class LoginFrameListener {
             return;
         }
 
-        User user = session.authenticate(id, password);
-        if (user == null) {
-            DialogHelper.error(view, "El ID o la clave ingresados son incorrectos.");
+        // La autenticación la resuelve el Backend: el Frontend ya no recorre
+        // usuarios ni compara claves.
+        User user;
+        try {
+            user = session.getService().login(id, password);
+        } catch (ServiceException ex) {
+            DialogHelper.error(view, ex.getMessage());
             return;
         }
 

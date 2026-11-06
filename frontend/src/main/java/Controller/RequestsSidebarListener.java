@@ -1,6 +1,6 @@
 package Controller;
 
-import Service.ReservationService.PendingRequest;
+import Dto.PendingRequest;
 import Service.ServiceException;
 import View.RequestsSidebar;
 import View.RequestsSidebar.RequestRow;
@@ -17,7 +17,7 @@ import java.util.List;
  * <p>
  * Muestra las solicitudes "En revisión" de todos los funcionarios en el
  * orden de sus notificaciones (ver
- * {@link Service.ReservationService#listPendingRequests()}): primero las
+ * {@link Service.IService#listPendingRequests()}): primero las
  * nuevas sin ver (la más reciente arriba) y luego las ya vistas (la marcada
  * más recientemente primero). Ambos botones operan sobre la solicitud
  * seleccionada y avisan si no hay ninguna:
@@ -75,12 +75,17 @@ public final class RequestsSidebarListener {
 
     /** Vuelve a cargar las solicitudes pendientes, en el orden de sus notificaciones. */
     public void refresh() {
-        currentRequests = session.getReservationService().listPendingRequests();
+        try {
+            currentRequests = session.getService().listPendingRequests();
+        } catch (Service.ServiceException ex) {
+            DialogHelper.error(sidebar, ex.getMessage());
+            return;
+        }
 
         List<RequestRow> rows = new ArrayList<>();
         for (PendingRequest request : currentRequests) {
-            rows.add(new RequestRow(request.employee().getName(), request.reservation().getActivity(),
-                    !request.reservation().getNotification().isSeen()));
+            rows.add(new RequestRow(request.employeeName(), request.reservation().activity(),
+                    !request.seen()));
         }
         sidebar.showRequests(rows);
     }
@@ -95,13 +100,13 @@ public final class RequestsSidebarListener {
             DialogHelper.warn(sidebar, "Debe seleccionar una solicitud de la lista para poder marcarla como vista.");
             return;
         }
-        if (request.reservation().getNotification().isSeen()) {
+        if (request.seen()) {
             DialogHelper.warn(sidebar, "La solicitud ya fue marcada como vista.");
             return;
         }
 
         try {
-            session.getReservationService().markRequestAsSeen(request.employee().getId(), request.reservation().getId());
+            session.getService().markRequestAsSeen(request.employeeId(), request.reservationId());
         } catch (ServiceException ex) {
             DialogHelper.error(sidebar, ex.getMessage());
             return;
@@ -125,9 +130,9 @@ public final class RequestsSidebarListener {
         // automáticamente (sin tener que pulsar "Marcar como vista"), así baja al
         // grupo de las vistas y deja de contarse como nueva, aunque luego se cierre
         // la revisión sin aprobarla ni rechazarla.
-        if (!request.reservation().getNotification().isSeen()) {
+        if (!request.seen()) {
             try {
-                session.getReservationService().markRequestAsSeen(request.employee().getId(), request.reservation().getId());
+                session.getService().markRequestAsSeen(request.employeeId(), request.reservationId());
             } catch (ServiceException ex) {
                 DialogHelper.error(sidebar, ex.getMessage());
                 return;

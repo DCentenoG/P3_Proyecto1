@@ -2,8 +2,8 @@ package Controller;
 
 import Model.Reservation;
 import Model.ResourceCategory;
-import Service.AIExtractionException;
-import Service.AIReservationExtractionService;
+import Service.IService;
+import Service.ServiceException;
 import Service.ExtractedReservationData;
 import View.DatePickerDialog;
 import View.TimePickerDialog;
@@ -136,7 +136,7 @@ final class ReservationFormSupport {
     }
 
     /**
-     * Envía la "Frase" a {@link AIReservationExtractionService} en un hilo
+     * Envía la "Frase" al Backend ({@link IService#extractReservationFromPhrase}) en un hilo
      * aparte (la llamada de red toma 1-3s) y, con lo que devuelva, precarga
      * los campos del formulario. Nunca bloquea el flujo normal: ante
      * cualquier falla (sin red, clave ausente, bloqueo de seguridad, XML
@@ -146,7 +146,7 @@ final class ReservationFormSupport {
      * frase no menciona conserva su valor actual (importante en "Editar
      * reserva", donde el formulario ya viene con los datos de la reserva).
      */
-    static void fillFromPhrase(Component parent, AIReservationExtractionService aiService, JTextField phraseField,
+    static void fillFromPhrase(Component parent, IService service, JTextField phraseField,
                                JButton aiButton, FormFields fields, List<ResourceCategory> systemCategories) {
         String phrase = phraseField.getText().trim();
         if (phrase.isEmpty()) {
@@ -160,8 +160,10 @@ final class ReservationFormSupport {
 
         new SwingWorker<ExtractedReservationData, Void>() {
             @Override
-            protected ExtractedReservationData doInBackground() throws AIExtractionException {
-                return aiService.extractFromPhrase(phrase);
+            protected ExtractedReservationData doInBackground() throws ServiceException {
+                // Corre fuera del EDT: la llamada a la IA es lenta y, cuando el
+                // Backend sea remoto, además viaja por la red.
+                return service.extractReservationFromPhrase(phrase);
             }
 
             @Override

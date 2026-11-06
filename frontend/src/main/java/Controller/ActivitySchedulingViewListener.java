@@ -159,7 +159,7 @@ public final class ActivitySchedulingViewListener {
         // que es lo único propio de la Vista.
         List<ReservationSummary> activities;
         try {
-            activities = session.getReservationService().getActivitySchedule(weekStart, weekEnd);
+            activities = session.getService().getActivitySchedule(weekStart, weekEnd);
         } catch (ServiceException ex) {
             DialogHelper.error(view, ex.getMessage());
             return;
