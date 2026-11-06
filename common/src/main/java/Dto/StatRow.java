@@ -1,5 +1,7 @@
 package Dto;
 
+import java.io.Serializable;
+
 /**
  * Una fila de estadistica: una etiqueta y cuantas veces se conto.
  * <p>
@@ -17,5 +19,8 @@ package Dto;
  * @param label etiqueta de la fila, tal como se muestra
  * @param count cantidad contada
  */
-public record StatRow(String label, int count) {
+public record StatRow(String label, int count) implements Serializable {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
 }

@@ -1,5 +1,7 @@
 package Dto;
 
+import java.io.Serializable;
+
 /**
  * Una franja ocupada de un recurso concreto en un dia: el recurso, y la reserva
  * Aceptada que lo tiene tomado. Es lo que alimenta la grilla de la pantalla de
@@ -19,5 +21,8 @@ package Dto;
 public record ResourceSlot(String categoryId,
                            int resourceId,
                            String resourceDescription,
-                           ReservationSummary reservation) {
+                           ReservationSummary reservation) implements Serializable {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
 }

@@ -11,6 +11,9 @@ import java.time.LocalTime;
 import java.util.List;
 
 public class Employee extends User{
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
     //Attributes
     private String name;
     private int phoneNumber;

@@ -1,12 +1,16 @@
 package Model;
 
+import java.io.Serializable;
 import Model.exceptions.EmployeeNotFoundException;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class UserContainer {
+public class UserContainer implements Serializable {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
     //Attributes
     private ArrayList<User> users;
     int nextId;

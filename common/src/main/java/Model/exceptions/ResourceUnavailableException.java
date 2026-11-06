@@ -9,6 +9,9 @@ import java.util.List;
  * usuario sin tener que recalcularlas.
  */
 public class ResourceUnavailableException extends ModelException {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
 
     private final List<String> unavailableCategories;
 

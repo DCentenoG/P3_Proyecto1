@@ -1,4 +1,5 @@
 package Model;
+import java.io.Serializable;
 import Model.exceptions.InvalidReservationOperationException;
 import Model.exceptions.ResourceUnavailableException;
 
@@ -6,7 +7,10 @@ import java.time.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Reservation {
+public class Reservation implements Serializable {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
     //Attributes
     /*
     Identificador unico de la reserva en todo el sistema, generado por

@@ -1,5 +1,6 @@
 package Dto;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -33,7 +34,10 @@ public record ReservationSummary(int reservationId,
                                  LocalDate date,
                                  LocalTime startTime,
                                  LocalTime endTime,
-                                 List<String> resourceDescriptions) {
+                                 List<String> resourceDescriptions) implements Serializable {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
 
     /** Texto con el que se rotula la franja ocupada en las grillas: "Actividad - Funcionario". */
     public String label() {

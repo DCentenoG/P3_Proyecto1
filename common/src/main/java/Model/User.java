@@ -1,6 +1,11 @@
 package Model;
 
-public abstract class User {
+import java.io.Serializable;
+
+public abstract class User implements Serializable {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
     //Attributes
     private int id;
     private String password;

@@ -1,5 +1,6 @@
 package Model;
 
+import java.io.Serializable;
 import Model.exceptions.InvalidReservationOperationException;
 
 import java.time.LocalDateTime;
@@ -20,7 +21,10 @@ Guarda dos momentos, que definen el orden en que se muestran las solicitudes:
 receivedAt puede ser null en reservas de archivos anteriores a este flujo
 (no se sabe cuando entraron): se tratan como las mas antiguas.
 */
-public class RequestNotification {
+public class RequestNotification implements Serializable {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
 
     private LocalDateTime receivedAt;
     private LocalDateTime seenAt;

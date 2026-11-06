@@ -1,5 +1,6 @@
 package Model;
 
+import java.io.Serializable;
 import Model.exceptions.DuplicateResourceException;
 import Model.exceptions.ResourceNotFoundException;
 
@@ -8,7 +9,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-public class ResourceCategory {
+public class ResourceCategory implements Serializable {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
     //Attributes
     String id;
     String description;

@@ -1,5 +1,6 @@
 package Service;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -17,7 +18,10 @@ import java.util.List;
  * sigue siendo responsabilidad de {@link ReservationService}, tal como
  * lo pide el enunciado.
  */
-public class ExtractedReservationData {
+public class ExtractedReservationData implements Serializable {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
 
     private String activity;
     private LocalDate date;

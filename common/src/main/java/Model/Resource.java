@@ -1,5 +1,6 @@
 package Model;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /*
@@ -9,7 +10,10 @@ DENTRO de su categoria, asi que el recurso 1 de "Salas" y el recurso 1 de
 identidad: es un dato que se puede editar sin que el recurso deje de ser el
 mismo.
 */
-public class Resource {
+public class Resource implements Serializable {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
     //Attributes
     private int id;
     private ResourceCategory resourceCategoryReference;

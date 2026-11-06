@@ -9,6 +9,9 @@ package Model.exceptions;
  * capas).
  */
 public abstract class ModelException extends Exception {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
     protected ModelException(String message) {
         super(message);
     }

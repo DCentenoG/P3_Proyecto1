@@ -7,6 +7,9 @@ package Model.exceptions;
  * elegir un recurso por cada categoría requerida, o rechazar sin motivo).
  */
 public class InvalidReservationOperationException extends ModelException {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
     public InvalidReservationOperationException(String message) {
         super(message);
     }

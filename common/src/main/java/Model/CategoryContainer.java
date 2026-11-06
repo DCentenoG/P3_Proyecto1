@@ -1,12 +1,16 @@
 package Model;
 
+import java.io.Serializable;
 import Model.exceptions.CategoryNotFoundException;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class CategoryContainer {
+public class CategoryContainer implements Serializable {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
     //Attributes
     private ArrayList<ResourceCategory> categories;
     int nextId;

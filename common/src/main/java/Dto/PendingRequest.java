@@ -1,5 +1,7 @@
 package Dto;
 
+import java.io.Serializable;
+
 /**
  * Una solicitud de reserva pendiente de revision, tal como la ve el
  * administrador en el sidebar: quien la pidio, que pidio y si ya fue marcada
@@ -19,7 +21,11 @@ package Dto;
  * @param reservation resumen de la reserva solicitada
  * @param seen        si el administrador ya la marco como vista
  */
-public record PendingRequest(int employeeId, ReservationSummary reservation, boolean seen) {
+public record PendingRequest(int employeeId, ReservationSummary reservation, boolean seen)
+        implements Serializable {
+    /* Version del formato serializado: ver Protocol.Request. */
+    private static final long serialVersionUID = 1L;
+
 
     /** Nombre del funcionario que la pidio. */
     public String employeeName() {
