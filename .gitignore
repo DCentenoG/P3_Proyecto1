@@ -36,3 +36,6 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Residuos del proyecto plano de IntelliJ (anterior a Maven) ###
+out/

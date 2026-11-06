@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cr.una.proyecto1</groupId>
+        <artifactId>sistema-reservas</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>sistema-reservas-backend</artifactId>
+    <packaging>jar</packaging>
+
+    <!--
+    Capas Logica y de Datos. Al terminar el Proyecto 2 corre como un proceso
+    independiente, sin ninguna interfaz grafica, escuchando peticiones de los
+    Frontend en un puerto.
+
+    Hoy contiene:
+      Service/      logica de dominio y la integracion con la IA
+      Persistence/  lectura y escritura del XML (se reemplaza por DAOs JDBC en la etapa 4)
+
+    REGLA: ni una sola clase de Swing (javax.swing, java.awt) entra aqui.
+    -->
+
+    <dependencies>
+        <dependency>
+            <groupId>cr.una.proyecto1</groupId>
+            <artifactId>sistema-reservas-common</artifactId>
+        </dependency>
+
+        <!-- Cuerpo JSON de las llamadas a la API de IA, en Service.AIReservationExtractionService -->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+        </dependency>
+
+        <!--
+        El driver JDBC de Oracle se agrega AQUI, y solo aqui, en la etapa 4.
+        Nunca en frontend ni en common.
+        -->
+    </dependencies>
+</project>
