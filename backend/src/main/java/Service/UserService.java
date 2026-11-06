@@ -114,7 +114,7 @@ public class UserService {
 
         try {
             Employee other = findEmployeeByName(newName.trim());
-            if (other != employee) {
+            if (!employee.equals(other)) {
                 throw new ServiceException("Ya existe otro funcionario registrado con ese nombre.");
             }
         } catch (ServiceException e) {

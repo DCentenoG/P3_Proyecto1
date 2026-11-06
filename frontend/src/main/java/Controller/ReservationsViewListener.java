@@ -261,7 +261,7 @@ public final class ReservationsViewListener {
 
         Reservation toCancel = employee.getReservations().get(row);
         try {
-            session.getReservationService().cancelReservation(employee.getId(), toCancel);
+            session.getReservationService().cancelReservation(employee.getId(), toCancel.getId());
         } catch (ServiceException ex) {
             DialogHelper.error(view, ex.getMessage());
             return;

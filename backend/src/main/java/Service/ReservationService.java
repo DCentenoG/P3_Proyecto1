@@ -89,19 +89,16 @@ public class ReservationService {
     revision": libera sus recursos y debe aprobarse de nuevo. Es "todo o nada": si
     algo falla, la reserva queda exactamente como estaba.
     */
-    public void editReservation(int employeeId, Reservation reservation, String activity, LocalDate date,
+    public void editReservation(int employeeId, int reservationId, String activity, LocalDate date,
                                 LocalTime startTime, LocalTime endTime,
                                 List<String> requiredCategoryDescriptions) throws ServiceException {
 
         Employee employee = requireEmployee(employeeId);
-        if (reservation == null) {
-            throw new ServiceException("Debe indicar la reserva que desea editar.");
-        }
         validateReservationData(activity, date, startTime, endTime, requiredCategoryDescriptions);
         List<ResourceCategory> categories = resolveCategories(requiredCategoryDescriptions);
 
         try {
-            employee.tryEdit(reservation, activity.trim(), date, startTime, endTime, categories, service.getUsers(),
+            employee.tryEdit(reservationId, activity.trim(), date, startTime, endTime, categories, service.getUsers(),
                     LocalDateTime.now());
         } catch (ReservationNotFoundException e) {
             throw new ServiceException(e.getMessage(), e);
@@ -117,11 +114,10 @@ public class ReservationService {
     sus recursos. No se puede cancelar una reserva Rechazada, una ya Cancelada ni una
     cuya fecha ya paso.
     */
-    public void cancelReservation(int employeeId, Reservation reservation) throws ServiceException {
+    public void cancelReservation(int employeeId, int reservationId) throws ServiceException {
         Employee employee = requireEmployee(employeeId);
-        if (reservation == null) {
-            throw new ServiceException("Debe indicar la reserva que desea cancelar.");
-        }
+        Reservation reservation = requireReservationOf(employee, reservationId);
+
         // Primero las reglas del estado (p. ej. una Rechazada nunca se cancela), para
         // que el mensaje explique el motivo real; luego la regla de la fecha.
         try {
@@ -134,7 +130,7 @@ public class ReservationService {
         }
 
         try {
-            employee.cancelReservation(reservation);
+            employee.cancelReservation(reservationId);
         } catch (ReservationNotFoundException | InvalidReservationOperationException e) {
             throw new ServiceException(e.getMessage(), e);
         }
@@ -173,9 +169,9 @@ public class ReservationService {
     reserva (sigue "En revision"); solo cambia su lugar en el sidebar y deja de
     contarse como nueva. Una solicitud ya marcada como vista no se puede marcar otra vez.
     */
-    public void markRequestAsSeen(int employeeId, Reservation request) throws ServiceException {
+    public void markRequestAsSeen(int employeeId, int reservationId) throws ServiceException {
         Employee employee = requireEmployee(employeeId);
-        requireRequestOf(employee, request);
+        Reservation request = requireReservationOf(employee, reservationId);
 
         try {
             request.markRequestSeen(LocalDateTime.now());
@@ -192,10 +188,9 @@ public class ReservationService {
     a otra reserva ya Aceptada que choque en horario. Son las opciones que el
     administrador puede elegir al aprobarla (una lista vacia: no hay disponibilidad).
     */
-    public Map<ResourceCategory, List<Resource>> availableResourcesFor(Reservation request) throws ServiceException {
-        if (request == null) {
-            throw new ServiceException("Debe indicar la solicitud a revisar.");
-        }
+    public Map<ResourceCategory, List<Resource>> availableResourcesFor(int employeeId, int reservationId)
+            throws ServiceException {
+        Reservation request = requireReservationOf(requireEmployee(employeeId), reservationId);
         Map<ResourceCategory, List<Resource>> available = new LinkedHashMap<>();
         for (ResourceCategory category : request.getRequiredCategories()) {
             available.put(category, request.freeResourcesOf(category, service.getUsers(), null));
@@ -208,10 +203,10 @@ public class ReservationService {
     categoria requerida). La reserva pasa a "Aceptada", deja de estar en las
     solicitudes y empieza a ocupar esos recursos y su horario en todo el sistema.
     */
-    public void approveRequest(int employeeId, Reservation request, List<Resource> chosenResources)
+    public void approveRequest(int employeeId, int reservationId, List<Resource> chosenResources)
             throws ServiceException {
         Employee employee = requireEmployee(employeeId);
-        requireRequestOf(employee, request);
+        Reservation request = requireReservationOf(employee, reservationId);
         if (chosenResources == null) {
             throw new ServiceException("Debe elegir un recurso por cada categoria requerida.");
         }
@@ -233,9 +228,9 @@ public class ReservationService {
     "Rechazada", deja de estar en las solicitudes y el funcionario puede consultar
     el motivo (y editarla para volver a solicitarla).
     */
-    public void rejectRequest(int employeeId, Reservation request, String reason) throws ServiceException {
+    public void rejectRequest(int employeeId, int reservationId, String reason) throws ServiceException {
         Employee employee = requireEmployee(employeeId);
-        requireRequestOf(employee, request);
+        Reservation request = requireReservationOf(employee, reservationId);
         if (reason == null || reason.isBlank()) {
             throw new ServiceException("Debe indicar el motivo del rechazo.");
         }
@@ -262,12 +257,16 @@ public class ReservationService {
         return notification.isSeen() ? notification.getSeenAt() : notification.getReceivedAt();
     }
 
-    private void requireRequestOf(Employee employee, Reservation request) throws ServiceException {
-        if (request == null) {
-            throw new ServiceException("Debe indicar la solicitud a revisar.");
-        }
-        if (!employee.ownsReservation(request)) {
-            throw new ServiceException("La solicitud indicada no pertenece a ese funcionario.");
+    /*
+    Localiza la reserva del funcionario por su id. Es el unico punto por el que
+    este servicio resuelve una reserva: el Frontend solo manda el id, nunca el
+    objeto, porque al otro lado del socket lo que llegaria seria una copia.
+    */
+    private Reservation requireReservationOf(Employee employee, int reservationId) throws ServiceException {
+        try {
+            return employee.getReservationById(reservationId);
+        } catch (ReservationNotFoundException e) {
+            throw new ServiceException("La reserva indicada no pertenece a ese funcionario.", e);
         }
     }
 

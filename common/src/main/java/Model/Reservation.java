@@ -8,6 +8,19 @@ import java.util.List;
 
 public class Reservation {
     //Attributes
+    /*
+    Identificador unico de la reserva en todo el sistema, generado por
+    UserContainer.generateReservationId() al crearla. Es INMUTABLE en la practica:
+    editar, cancelar o volver a solicitar la reserva no lo cambia, porque esas
+    operaciones modifican este mismo objeto en vez de reemplazarlo.
+
+    Antes de este cambio las reservas no tenian identidad propia y se comparaban
+    por referencia (==). Eso dejaba de funcionar en cuanto una reserva viaja por
+    un socket, porque lo que llega al otro lado es una copia.
+
+    Vale UNASSIGNED_ID (0) mientras no se le haya asignado uno.
+    */
+    private int id;
     private String activity;
     private LocalDate date;
     private LocalTime startTime;
@@ -26,8 +39,12 @@ public class Reservation {
     private RequestNotification notification;
     //End of attributes
 
+    /* Valor del id mientras la reserva todavia no tiene uno asignado. */
+    public static final int UNASSIGNED_ID = 0;
+
     //Default Builder
     public Reservation() {
+        id = UNASSIGNED_ID;
         activity = null;
         date = null;
         startTime = null;
@@ -41,6 +58,7 @@ public class Reservation {
 
     //Parameterized Builder
     public Reservation(String activity, LocalDate date, LocalTime startTime, LocalTime endTime) {
+        this.id = UNASSIGNED_ID;
         this.activity = activity;
         this.date = date;
         this.startTime = startTime;
@@ -53,6 +71,23 @@ public class Reservation {
     }
 
     //basic getters
+    public int getId() {
+        return id;
+    }
+
+    /*
+    Solo debe llamarse una vez, al crear la reserva (Employee.tryBook) o al
+    reconstruirla desde el almacenamiento. Cambiarle el id a una reserva que ya
+    lo tiene rompe las referencias que el Frontend tenga a ella.
+    */
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public boolean hasId() {
+        return id != UNASSIGNED_ID;
+    }
+
     public String getActivity() {
         return activity;
     }
@@ -143,14 +178,14 @@ public class Reservation {
     /*Indica si "resource" esta libre en la fecha/horario de esta reserva: ninguna OTRA reserva ACEPTADA que
     choque en horario lo tiene asignado. Las reservas En revision, Rechazadas o Canceladas no ocupan recursos.
     Se ignora la reserva "ignored" (null si no hay ninguna): al EDITAR, la version nueva no debe "chocar" con
-    la reserva original que reemplaza. La comparacion es por identidad (==), no por contenido.*/
+    la reserva original que reemplaza. La comparacion es por id (ver isSame), no por contenido.*/
     public boolean isResourceFree(Resource resource, UserContainer users, Reservation ignored) {
         ArrayList<Employee> listOfEmployeesForCheckingReservations = users.getListOfEmployees();
         for (int i = 0; i < listOfEmployeesForCheckingReservations.size(); i++) {
             ArrayList<Reservation> toCheckList = listOfEmployeesForCheckingReservations.get(i).getReservations();
             for (int j = 0; j < toCheckList.size(); j++) {
                 Reservation other = toCheckList.get(j);
-                if (other == this || other == ignored || !other.isAccepted()) {
+                if (isSame(other, this) || isSame(other, ignored) || !other.isAccepted()) {
                     continue;
                 }
                 if (this.overlaps(other)) {
@@ -231,7 +266,7 @@ public class Reservation {
         for (ResourceCategory category : requiredCategories) {
             Resource chosen = null;
             for (Resource resource : chosenResources) {
-                if (resource != null && resource.getResourceCategoryReference() == category) {
+                if (resource != null && category.equals(resource.getResourceCategoryReference())) {
                     if (chosen != null) {
                         throw new InvalidReservationOperationException(
                                 "Debe elegir un solo recurso para la categoria '" + category.getDescription() + "'.");
@@ -319,5 +354,46 @@ public class Reservation {
             }
         }
         return count;
+    }
+
+    //--- Identidad ---
+
+    /*
+    Indica si "a" y "b" son la misma reserva. Primero compara por referencia, que
+    es el caso normal mientras todo corre en el mismo proceso; si no coinciden,
+    compara por id, que es lo que funciona cuando una de las dos llego por la red
+    y es una copia. Una reserva sin id asignado solo es igual a si misma.
+    */
+    private static boolean isSame(Reservation a, Reservation b) {
+        if (b == null) {
+            return false;
+        }
+        if (a == b) {
+            return true;
+        }
+        return a.hasId() && a.id == b.id;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof Reservation otherReservation)) {
+            return false;
+        }
+        // Sin id asignado no hay identidad que comparar: solo es igual a si misma,
+        // y ese caso ya lo cubrio la comparacion por referencia de arriba.
+        return hasId() && id == otherReservation.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return Integer.hashCode(id);
+    }
+
+    @Override
+    public String toString() {
+        return "Reservation{" + id + " " + activity + " " + date + " " + startTime + "-" + endTime + "}";
     }
 }

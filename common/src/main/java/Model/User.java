@@ -21,4 +21,26 @@ public abstract class User {
     //Setter methods
     public void setId(int id){this.id = id;}
     public void setPassword(String password){this.password = password;}
+
+    /*
+    La identidad de un usuario es su id, que UserContainer genera con un unico
+    contador compartido entre administradores y funcionarios, asi que es unico en
+    todo el sistema. Se compara ademas la clase concreta para que un Admin y un
+    Employee nunca se consideren iguales.
+    */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (other == null || getClass() != other.getClass()) {
+            return false;
+        }
+        return id == ((User) other).id;
+    }
+
+    @Override
+    public int hashCode() {
+        return Integer.hashCode(id);
+    }
 }

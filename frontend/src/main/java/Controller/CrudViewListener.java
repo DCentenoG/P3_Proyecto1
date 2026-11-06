@@ -439,7 +439,8 @@ public final class CrudViewListener {
             ResourceCategory targetCategory =
                     session.getResourceService().findCategoryByDescription(selectedCategory.toString());
             if (existing != null) {
-                session.getResourceService().updateResource(existing, targetCategory, id, description);
+                session.getResourceService().updateResource(existing.getCategoryId(), existing.getId(),
+                        targetCategory.getId(), id, description);
             } else {
                 session.getResourceService().addResource(targetCategory.getDescription(), id, description);
             }

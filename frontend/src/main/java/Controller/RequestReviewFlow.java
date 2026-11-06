@@ -66,7 +66,8 @@ final class RequestReviewFlow {
     private void showReviewForm(Component parent) {
         Map<ResourceCategory, List<Resource>> available;
         try {
-            available = session.getReservationService().availableResourcesFor(request.reservation());
+            available = session.getReservationService()
+                    .availableResourcesFor(request.employee().getId(), request.reservation().getId());
         } catch (ServiceException ex) {
             DialogHelper.error(parent, ex.getMessage());
             return;
@@ -133,7 +134,8 @@ final class RequestReviewFlow {
         }
 
         try {
-            session.getReservationService().approveRequest(request.employee().getId(), request.reservation(), chosen);
+            session.getReservationService()
+                    .approveRequest(request.employee().getId(), request.reservation().getId(), chosen);
         } catch (ServiceException ex) {
             DialogHelper.error(form, ex.getMessage());
             return;
@@ -173,7 +175,8 @@ final class RequestReviewFlow {
         }
 
         try {
-            session.getReservationService().rejectRequest(request.employee().getId(), request.reservation(), reason);
+            session.getReservationService()
+                    .rejectRequest(request.employee().getId(), request.reservation().getId(), reason);
         } catch (ServiceException ex) {
             DialogHelper.error(form, ex.getMessage());
             return;

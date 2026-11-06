@@ -49,7 +49,7 @@ Estructura del XML generado:
         <user type="ADMIN" id="1" password="admin"/>
         <user type="EMPLOYEE" id="2" password="2" name="Juan Perez" phoneNumber="88881111">
             <reservations>
-                <reservation activity="Reunion" date="2026-09-20" startTime="09:00" endTime="10:00"
+                <reservation id="1" activity="Reunion" date="2026-09-20" startTime="09:00" endTime="10:00"
                              state="IN_REVIEW" notificationReceivedAt="2026-09-18T10:15:30"
                              notificationSeenAt="2026-09-18T11:02:04">
                     <requiredCategory categoryId="CAT-000001"/>
@@ -203,7 +203,38 @@ public class SystemXmlRepository {
         //Igual que con las categorias: el nextId real depende del mayor id usado, no de
         //cuantos usuarios hay (para que no se dupliquen ids si se elimino algun usuario).
         users.setNextId(highestId + 1);
+        assignMissingReservationIds(users);
         return users;
+    }
+
+    /*
+    Deja el contador de ids de reserva listo para seguir generando sin colisiones y,
+    de paso, migra los archivos anteriores a que las reservas tuvieran id.
+
+    Un XML viejo no trae el atributo "id" en <reservation>, asi que esas reservas
+    se cargan con Reservation.UNASSIGNED_ID. Aqui se les asigna uno a partir del
+    mayor id que ya exista en el archivo, respetando los que si venian. Gracias a
+    esto los datos de prueba que ya estan en src/Data/system.xml siguen sirviendo:
+    no hay que borrar el archivo ni volver a crear las reservas a mano.
+    */
+    private void assignMissingReservationIds(UserContainer users) {
+        int highestReservationId = 0;
+        for (Employee employee : users.getListOfEmployees()) {
+            for (Reservation reservation : employee.getReservations()) {
+                highestReservationId = Math.max(highestReservationId, reservation.getId());
+            }
+        }
+
+        int nextId = highestReservationId + 1;
+        for (Employee employee : users.getListOfEmployees()) {
+            for (Reservation reservation : employee.getReservations()) {
+                if (!reservation.hasId()) {
+                    reservation.setId(nextId);
+                    nextId++;
+                }
+            }
+        }
+        users.setNextReservationId(nextId);
     }
 
     private ArrayList<Reservation> loadReservations(Element userEl, CategoryContainer categories) {
@@ -222,6 +253,11 @@ public class SystemXmlRepository {
             LocalTime endTime = LocalTime.parse(reservationEl.getAttribute("endTime"));
 
             Reservation reservation = new Reservation(activity, date, startTime, endTime);
+            //Los archivos anteriores a que las reservas tuvieran id no traen este atributo:
+            //quedan con UNASSIGNED_ID y loadUsers les asigna uno (assignMissingReservationIds).
+            if (reservationEl.hasAttribute("id")) {
+                reservation.setId(Integer.parseInt(reservationEl.getAttribute("id")));
+            }
             reservation.setAssignedResources(loadAssignedResources(reservationEl, categories));
             reservation.setRequiredCategories(loadRequiredCategories(reservationEl, categories,
                     reservation.getAssignedResources()));
@@ -388,6 +424,7 @@ public class SystemXmlRepository {
 
         for (Reservation reservation : reservations) {
             Element reservationEl = doc.createElement("reservation");
+            reservationEl.setAttribute("id", String.valueOf(reservation.getId()));
             reservationEl.setAttribute("activity", reservation.getActivity());
             reservationEl.setAttribute("date", reservation.getDate().toString());
             reservationEl.setAttribute("startTime", reservation.getStartTime().toString());

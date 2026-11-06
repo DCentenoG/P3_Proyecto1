@@ -52,7 +52,7 @@ public class ResourceService {
         String normalized = newDescription.trim();
         try {
             ResourceCategory duplicate = service.getCategories().getCategorybyDescription(normalized);
-            if (!normalized.equalsIgnoreCase(currentDescription) && duplicate != category) {
+            if (!normalized.equalsIgnoreCase(currentDescription) && !category.equals(duplicate)) {
                 throw new ServiceException("Ya existe otra categoria con esa descripcion.");
             }
         } catch (CategoryNotFoundException ignored) {
@@ -141,12 +141,18 @@ public class ResourceService {
         service.save();
     }
 
-    public void transferResource(Resource resource, ResourceCategory destination) throws ServiceException {
-        if (resource == null || destination == null) {
-            throw new ServiceException("Debe indicar el recurso y la categoria de destino.");
-        }
-        ResourceCategory source = resource.getResourceCategoryReference();
-        if (source == destination) {
+    /*
+    Mueve un recurso de una categoria a otra. Se identifica por (categoria origen,
+    id del recurso) y la categoria destino por su id, en vez de recibir los objetos:
+    al pasar a la arquitectura distribuida, el Frontend solo puede mandar
+    identificadores, porque los objetos que tiene son copias.
+    */
+    public void transferResource(String sourceCategoryId, int resourceId, String destinationCategoryId)
+            throws ServiceException {
+        ResourceCategory source = requireCategoryById(sourceCategoryId);
+        ResourceCategory destination = requireCategoryById(destinationCategoryId);
+        Resource resource = getResource(source, resourceId);
+        if (source.equals(destination)) {
             return;
         }
 
@@ -182,20 +188,24 @@ public class ResourceService {
         service.save();
     }
 
-    public void updateResource(Resource resource, ResourceCategory destination, String idText, String newDescription)
-            throws ServiceException {
-        if (resource == null || destination == null) {
-            throw new ServiceException("Debe indicar el recurso y la categoria.");
-        }
+    /*
+    Edita un recurso y, si cambio de categoria, lo mueve. Igual que
+    transferResource, identifica por ids y no por objetos.
+    */
+    public void updateResource(String sourceCategoryId, int resourceId, String destinationCategoryId,
+                               String idText, String newDescription) throws ServiceException {
+        ResourceCategory source = requireCategoryById(sourceCategoryId);
+        ResourceCategory destination = requireCategoryById(destinationCategoryId);
+        Resource resource = getResource(source, resourceId);
+
         int newId = parseResourceId(idText);
         if (newDescription == null || newDescription.isBlank()) {
             throw new ServiceException("Debe indicar la descripcion del recurso.");
         }
 
-        ResourceCategory source = resource.getResourceCategoryReference();
-        if (source != destination) {
+        if (!source.equals(destination)) {
             if (newId == resource.getId() && newDescription.trim().equals(resource.getDescription())) {
-                transferResource(resource, destination);
+                transferResource(sourceCategoryId, resourceId, destinationCategoryId);
                 return;
             }
             try {
@@ -237,6 +247,23 @@ public class ResourceService {
 
     private ResourceCategory requireCategory(String categoryDescription) throws ServiceException {
         return findCategoryByDescription(categoryDescription);
+    }
+
+    /*
+    Categoria con ese id. Es la forma de resolver una categoria cuando el Frontend
+    solo manda identificadores; findCategoryByDescription sigue sirviendo para los
+    formularios, que trabajan con lo que el usuario ve.
+    */
+    private ResourceCategory requireCategoryById(String categoryId) throws ServiceException {
+        if (categoryId == null || categoryId.isBlank()) {
+            throw new ServiceException("Debe indicar la categoria.");
+        }
+        for (ResourceCategory category : service.getCategories().getCategories()) {
+            if (categoryId.equals(category.getId())) {
+                return category;
+            }
+        }
+        throw new ServiceException("No existe ninguna categoria con el id '" + categoryId + "'.");
     }
 
     private Resource requireResource(String categoryDescription, int id) throws ServiceException {

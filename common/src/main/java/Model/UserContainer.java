@@ -10,18 +10,29 @@ public class UserContainer {
     //Attributes
     private ArrayList<User> users;
     int nextId;
+    /*
+    Contador global de ids de reserva. Vive aqui, y no dentro de cada Employee,
+    porque el id de una reserva tiene que ser unico en TODO el sistema: el
+    administrador trabaja con solicitudes de cualquier funcionario y, al pasar a
+    la arquitectura distribuida, el Frontend identifica una reserva solo por su
+    id. En la etapa de base de datos este contador lo reemplaza una secuencia de
+    Oracle.
+    */
+    private int nextReservationId;
     //End of attributes
 
     //Default Builder
     public UserContainer() {
         users = new ArrayList<>();
         nextId = 1;
+        nextReservationId = 1;
     }
 
     //Parameterized Builder
     public UserContainer(ArrayList<User> users) {
         this.users = users;
         nextId = users.size();
+        nextReservationId = 1;
     }
 
     //getter and setter methods
@@ -30,6 +41,23 @@ public class UserContainer {
     }
     public void setNextId(int nextId) {
         this.nextId = nextId;
+    }
+
+    public int getNextReservationId() {
+        return nextReservationId;
+    }
+
+    public void setNextReservationId(int nextReservationId) {
+        this.nextReservationId = nextReservationId;
+    }
+
+    /*
+    Reserva el siguiente id de reserva y avanza el contador. Lo usa
+    Employee.tryBook al crear una reserva. Un id asignado NUNCA cambia: la reserva
+    conserva el mismo id aunque se edite, se cancele o se vuelva a solicitar.
+    */
+    public int generateReservationId() {
+        return nextReservationId++;
     }
 
     //getter for the full container

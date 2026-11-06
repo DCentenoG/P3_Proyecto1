@@ -101,7 +101,7 @@ public final class RequestsSidebarListener {
         }
 
         try {
-            session.getReservationService().markRequestAsSeen(request.employee().getId(), request.reservation());
+            session.getReservationService().markRequestAsSeen(request.employee().getId(), request.reservation().getId());
         } catch (ServiceException ex) {
             DialogHelper.error(sidebar, ex.getMessage());
             return;
@@ -127,7 +127,7 @@ public final class RequestsSidebarListener {
         // la revisión sin aprobarla ni rechazarla.
         if (!request.reservation().getNotification().isSeen()) {
             try {
-                session.getReservationService().markRequestAsSeen(request.employee().getId(), request.reservation());
+                session.getReservationService().markRequestAsSeen(request.employee().getId(), request.reservation().getId());
             } catch (ServiceException ex) {
                 DialogHelper.error(sidebar, ex.getMessage());
                 return;

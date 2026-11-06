@@ -81,6 +81,9 @@ public class Employee extends User{
             throw new ResourceUnavailableException(unavailableCategories);
         }
 
+        // Id unico en todo el sistema, que la reserva conserva para siempre: editarla,
+        // cancelarla o volver a solicitarla modifica este mismo objeto, nunca lo reemplaza.
+        reservation.setId(users.generateReservationId());
         reservation.setRequiredCategories(new ArrayList<>(requiredCategories));
         // Entra como notificacion nueva (no vista) para el administrador.
         reservation.getNotification().receive(receivedAt);
@@ -100,14 +103,14 @@ public class Employee extends User{
      * la reserva queda exactamente igual.
      *
      * Se modifica el mismo objeto (no se reemplaza en la lista) para que la
-     * reserva conserve su posicion en "Mis reservas".
+     * reserva conserve su posicion en "Mis reservas" y, sobre todo, su id.
      */
-    public void tryEdit(Reservation target, String activity, LocalDate date, LocalTime startTime,
+    public void tryEdit(int reservationId, String activity, LocalDate date, LocalTime startTime,
                         LocalTime endTime, List<ResourceCategory> requiredCategories, UserContainer users,
                         LocalDateTime receivedAt)
             throws ResourceUnavailableException, ReservationNotFoundException {
 
-        requireOwnReservation(target);
+        Reservation target = getReservationById(reservationId);
 
         Reservation edited = new Reservation(activity, date, startTime, endTime);
         List<String> unavailableCategories = categoriesWithoutAvailability(edited, requiredCategories, users, target);
@@ -129,26 +132,34 @@ public class Employee extends User{
      * del sistema) y libera sus recursos. Ver Reservation.cancel() para las reglas
      * (una reserva Rechazada o ya Cancelada no se puede cancelar).
      */
-    public void cancelReservation(Reservation target)
+    public void cancelReservation(int reservationId)
             throws ReservationNotFoundException, InvalidReservationOperationException {
-        requireOwnReservation(target);
-        target.cancel();
+        getReservationById(reservationId).cancel();
     }
 
-    /* Indica si "reservation" (la misma instancia, no una igual) es una de las reservas de este funcionario. */
-    public boolean ownsReservation(Reservation reservation) {
+    /*
+     * Reserva de este funcionario con ese id. Es el unico punto por el que se
+     * localiza una reserva: antes se buscaba comparando referencias (==), que
+     * deja de funcionar en cuanto la reserva viaja por la red y lo que llega es
+     * una copia.
+     */
+    public Reservation getReservationById(int reservationId) throws ReservationNotFoundException {
         for (Reservation own : reservations) {
-            if (own == reservation) {
+            if (own.getId() == reservationId) {
+                return own;
+            }
+        }
+        throw new ReservationNotFoundException("La reserva indicada no pertenece a este funcionario.");
+    }
+
+    /* Indica si este funcionario tiene una reserva con ese id. */
+    public boolean ownsReservation(int reservationId) {
+        for (Reservation own : reservations) {
+            if (own.getId() == reservationId) {
                 return true;
             }
         }
         return false;
-    }
-
-    private void requireOwnReservation(Reservation reservation) throws ReservationNotFoundException {
-        if (!ownsReservation(reservation)) {
-            throw new ReservationNotFoundException("La reserva indicada no pertenece a este funcionario.");
-        }
     }
 
     /*

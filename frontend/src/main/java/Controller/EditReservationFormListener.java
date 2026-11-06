@@ -96,7 +96,7 @@ public final class EditReservationFormListener {
         // juntan los datos del formulario y se traduce el resultado a diálogos.
         // Si falla, el formulario queda abierto para que el funcionario corrija.
         try {
-            session.getReservationService().editReservation(session.getCurrentUser().getId(), reservation,
+            session.getReservationService().editReservation(session.getCurrentUser().getId(), reservation.getId(),
                     input.activity(), input.date(), input.startTime(), input.endTime(), input.categories());
         } catch (ServiceException ex) {
             DialogHelper.error(form, ex.getMessage());

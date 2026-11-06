@@ -95,4 +95,29 @@ public class ResourceCategory {
 
     public Resource getResourceByIndex(int index){return resources.get(index);}
 
+    /*
+    La identidad de una categoria es su id (formato "CAT-000001"). La descripcion
+    es editable y los recursos que contiene cambian, asi que ninguno de los dos
+    forma parte de la identidad.
+    */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof ResourceCategory otherCategory)) {
+            return false;
+        }
+        return Objects.equals(id, otherCategory.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
+    }
+
+    @Override
+    public String toString() {
+        return "ResourceCategory{" + id + " " + description + "}";
+    }
 }
