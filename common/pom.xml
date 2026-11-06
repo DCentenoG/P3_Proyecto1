@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cr.una.proyecto1</groupId>
+        <artifactId>sistema-reservas</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>sistema-reservas-common</artifactId>
+    <packaging>jar</packaging>
+
+    <!--
+    Lenguaje comun entre el Frontend y el Backend. Contiene hoy las entidades del
+    dominio (Model) y sus excepciones de negocio; en los pasos siguientes de esta
+    rama se le agregan:
+
+      - IService         (paso 3): el contrato que implementan tanto el servicio
+                         real del backend como el Proxy del frontend.
+      - protocol/, dto/  (paso 4): Request, Response, Notification y los DTOs que
+                         viajan por el socket.
+
+    REGLA: este modulo no declara NINGUNA dependencia fuera de JUnit (que hereda
+    del padre). Si alguna vez necesita una, es senal de que lo que se le quiso
+    meter pertenece al backend o al frontend.
+    -->
+
+    <dependencies>
+        <!-- intencionalmente vacio: ver la regla de arriba -->
+    </dependencies>
+</project>

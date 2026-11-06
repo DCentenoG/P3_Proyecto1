@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cr.una.proyecto1</groupId>
+        <artifactId>sistema-reservas</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>sistema-reservas-frontend</artifactId>
+    <packaging>jar</packaging>
+
+    <!--
+    Capa de Presentacion (MVC) y generacion de reportes PDF. Al terminar el
+    Proyecto 2 corre como un proceso independiente que se comunica con el
+    Backend por sockets, a traves del Proxy.
+
+    REGLA: este modulo NO debe tener ninguna referencia relacionada con la base
+    de datos. Se comprueba con:
+
+        mvn -pl frontend dependency:tree
+
+    que no debe mencionar ningun driver JDBC.
+    -->
+
+    <dependencies>
+        <dependency>
+            <groupId>cr.una.proyecto1</groupId>
+            <artifactId>sistema-reservas-common</artifactId>
+        </dependency>
+
+        <!--
+        ========================= PUENTE TEMPORAL =========================
+        Mientras no exista la capa de sockets, los Controladores siguen
+        llamando directo a las clases de Service/, asi que el frontend
+        necesita al backend en el classpath para poder arrancar en un solo
+        proceso, igual que hoy.
+
+        ESTA DEPENDENCIA SE BORRA en la rama del Proxy y los sockets, cuando
+        el frontend pase a hablar unicamente contra IService.
+
+        Mientras este aqui, "mvn -pl frontend dependency:tree" SI va a
+        mostrar el backend. Esa es la unica excepcion permitida, y es
+        temporal.
+        ===================================================================
+        -->
+        <dependency>
+            <groupId>cr.una.proyecto1</groupId>
+            <artifactId>sistema-reservas-backend</artifactId>
+        </dependency>
+
+        <!-- Reportes PDF a partir de las plantillas .jrxml, en Report.ReportService -->
+        <dependency>
+            <groupId>net.sf.jasperreports</groupId>
+            <artifactId>jasperreports</artifactId>
+        </dependency>
+    </dependencies>
+</project>
