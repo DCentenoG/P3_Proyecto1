@@ -15,6 +15,7 @@ import Model.exceptions.EmployeeNotFoundException;
 import Model.exceptions.InvalidReservationOperationException;
 import Model.exceptions.ReservationNotFoundException;
 import Model.exceptions.ResourceUnavailableException;
+import Model.exceptions.ResourceNotFoundException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -229,8 +230,14 @@ public class ReservationService {
             throw new ServiceException("Debe elegir un recurso por cada categoria requerida.");
         }
 
+        // NUEVO: los recursos que llegan por la red son copias; se cambian por los reales del servidor.
+        List<Resource> canonicalResources = new ArrayList<>();
+        for (Resource received : chosenResources) {
+            canonicalResources.add(resolveResource(received));
+        }
+
         try {
-            request.approve(chosenResources, service.getUsers());
+            request.approve(canonicalResources, service.getUsers());   // antes: chosenResources
         } catch (InvalidReservationOperationException e) {
             throw new ServiceException(e.getMessage(), e);
         } catch (ResourceUnavailableException e) {
@@ -483,5 +490,26 @@ public class ReservationService {
             throw new ServiceException(
                     "No existe ningun funcionario con el id '" + employeeId + "'.", e);
         }
+    }
+
+    /*
+Con el Backend remoto, los recursos que llegan del Frontend son copias. Se busca
+la instancia real (la que vive dentro de su categoria) para que la reserva y la
+categoria sigan compartiendo el mismo objeto Resource.
+*/
+    private Resource resolveResource(Resource received) throws ServiceException {
+        if (received == null) {
+            return null;   // approve() ya reporta que falta un recurso
+        }
+        for (ResourceCategory category : service.getCategories().getCategories()) {
+            if (category.getId().equals(received.getCategoryId())) {
+                try {
+                    return category.getResourceById(received.getId());
+                } catch (ResourceNotFoundException e) {
+                    throw new ServiceException("El recurso elegido ya no existe.", e);
+                }
+            }
+        }
+        throw new ServiceException("La categoria del recurso elegido ya no existe.");
     }
 }
