@@ -56,6 +56,8 @@ public final class ReservationsViewListener {
     // ni existencia de categorías (eso sigue en ReservationService), así que
     // no necesita compartir la instancia de Service del resto del programa.
 
+    private List<Reservation> reservations = new ArrayList<>();
+
     /**
      * Se invoca tras crear o cancelar una reserva, para que Calendarización
      * y Actividades (armadas una sola vez al iniciar sesión y mantenidas
@@ -98,6 +100,15 @@ public final class ReservationsViewListener {
         wireRejectedStateLink();
     }
 
+    /* Las reservas viven en el Backend: se vuelven a pedir antes de pintar la tabla. */
+    private void loadReservations() {
+        try {
+            reservations = session.getService().listReservations(employee.getId());
+        } catch (ServiceException ex) {
+            DialogHelper.error(view, ex.getMessage());
+        }
+    }
+
     /**
      * El estado "Rechazada" de "Mis reservas" funciona como un hipervínculo
      * (ver {@link StateCellRenderer}): al pasar el mouse por encima el
@@ -136,11 +147,11 @@ public final class ReservationsViewListener {
         JTable table = view.getReservationsTable();
         int row = table.rowAtPoint(e.getPoint());
         int column = table.columnAtPoint(e.getPoint());
-        if (row < 0 || column != ReservationsView.STATE_COLUMN || row >= employee.getReservations().size()) {
+        if (row < 0 || column != ReservationsView.STATE_COLUMN || row >= reservations.size()) {
             return null;
         }
         Object value = table.getValueAt(row, column);
-        return StateCellRenderer.isClickable(value) ? employee.getReservations().get(row) : null;
+        return StateCellRenderer.isClickable(value) ? reservations.get(row) : null;
     }
 
     private void showRejectionReason(Reservation reservation) {
@@ -229,12 +240,12 @@ public final class ReservationsViewListener {
      */
     private void onEditReservation() {
         int row = view.getReservationsTable().getSelectedRow();
-        if (row < 0 || row >= employee.getReservations().size()) {
+        if (row < 0 || row >= reservations.size()) {
             DialogHelper.warn(view, "Debe seleccionar una reserva de la tabla para poder editarla.");
             return;
         }
 
-        Reservation toEdit = employee.getReservations().get(row);
+        Reservation toEdit = reservations.get(row);
         EditReservationForm form = new EditReservationForm(SwingUtilities.getWindowAncestor(view));
         new EditReservationFormListener(form, session, toEdit, () -> {
             renderReservations();
@@ -249,7 +260,7 @@ public final class ReservationsViewListener {
 
     private void onCancelReservation() {
         int row = view.getReservationsTable().getSelectedRow();
-        if (row < 0 || row >= employee.getReservations().size()) {
+        if (row < 0 || row >= reservations.size()) {
             DialogHelper.warn(view, "Debe seleccionar una reserva de la tabla para poder cancelarla.");
             return;
         }
@@ -257,7 +268,7 @@ public final class ReservationsViewListener {
             return;
         }
 
-        Reservation toCancel = employee.getReservations().get(row);
+        Reservation toCancel = reservations.get(row);
         try {
             session.getService().cancelReservation(employee.getId(), toCancel.getId());
         } catch (ServiceException ex) {
@@ -284,7 +295,7 @@ public final class ReservationsViewListener {
 
     private void renderReservations() {
         DefaultTableModel model = (DefaultTableModel) view.getReservationsTable().getModel();
-        List<Reservation> reservations = employee.getReservations();
+        loadReservations();
 
         if (reservations.isEmpty()) {
             model.setRowCount(0);
@@ -336,7 +347,6 @@ public final class ReservationsViewListener {
 
     /** Genera un PDF con las reservas actualmente mostradas en la tabla (las de {@code employee}) y lo guarda donde el usuario elija. */
     private void onPrint() {
-        List<Reservation> reservations = employee.getReservations();
         if (reservations.isEmpty()) {
             DialogHelper.warn(view, "No tiene reservas registradas para imprimir.");
             return;
