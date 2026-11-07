@@ -1,11 +1,14 @@
+import Controller.DialogHelper;
 import Controller.LoginFrameListener;
 import Controller.SessionContext;
+import Network.ConnectionSettings;
+import Network.ServiceProxy;
 import Service.IService;
-import Service.LocalService;
 import View.LoginFrame;
 import View.UITheme;
 
-import javax.swing.SwingUtilities;
+import javax.swing.*;
+import java.io.IOException;
 
 /* claves para users de prueba:
 * admin
@@ -21,15 +24,16 @@ public class Main {
         SwingUtilities.invokeLater(() -> {
             UITheme.installSwingTheme();
 
-            // Mientras no exista la capa de sockets, el Frontend usa la
-            // implementacion local y la aplicacion corre en un solo proceso,
-            // igual que en el Proyecto 1.
-            //
-            // Cuando entre el Proxy, esta linea pasa a ser:
-            //     IService service = new ServiceProxy(host, puerto);
-            // y con eso el modulo frontend deja de depender del backend.
-
-            IService service = LocalService.bootstrapFromXml();
+            IService service;
+            try {
+                ConnectionSettings settings = ConnectionSettings.resolve(args);
+                service = new ServiceProxy(settings.host(), settings.port());
+            } catch (IOException | IllegalArgumentException e) {
+                DialogHelper.error(null, "No fue posible conectar con el servidor:\n" + e.getMessage()
+                        + "\n\nVerifique que el Backend este en ejecucion y que el host y el puerto sean correctos.");
+                System.exit(1);
+                return;
+            }
 
             SessionContext session = new SessionContext(service);
             LoginFrame loginFrame = new LoginFrame();
