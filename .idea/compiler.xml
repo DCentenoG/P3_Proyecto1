@@ -6,10 +6,10 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="sistema-reservas-common" />
+        <module name="sistema-reservas-backend" />
+        <module name="sistema-reservas-frontend" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="sistema-reservas" target="20" />
-    </bytecodeTargetLevel>
   </component>
 </project>
