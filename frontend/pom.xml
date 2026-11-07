@@ -32,25 +32,7 @@
             <artifactId>sistema-reservas-common</artifactId>
         </dependency>
 
-        <!--
-        ========================= PUENTE TEMPORAL =========================
-        Mientras no exista la capa de sockets, los Controladores siguen
-        llamando directo a las clases de Service/, asi que el frontend
-        necesita al backend en el classpath para poder arrancar en un solo
-        proceso, igual que hoy.
 
-        ESTA DEPENDENCIA SE BORRA en la rama del Proxy y los sockets, cuando
-        el frontend pase a hablar unicamente contra IService.
-
-        Mientras este aqui, "mvn -pl frontend dependency:tree" SI va a
-        mostrar el backend. Esa es la unica excepcion permitida, y es
-        temporal.
-        ===================================================================
-        -->
-        <dependency>
-            <groupId>cr.una.proyecto1</groupId>
-            <artifactId>sistema-reservas-backend</artifactId>
-        </dependency>
 
         <!-- Reportes PDF a partir de las plantillas .jrxml, en Report.ReportService -->
         <dependency>
