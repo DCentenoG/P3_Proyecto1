@@ -31,6 +31,8 @@ public final class SessionContext {
         this.service = service;
     }
 
+    private final AlertCenter alertCenter = new AlertCenter();
+
     /**
      * Única puerta de entrada a las operaciones del sistema. Todos los
      * controladores pasan por aquí: no hay ningún otro camino desde la capa de
@@ -42,6 +44,10 @@ public final class SessionContext {
 
     public User getCurrentUser() {
         return currentUser;
+    }
+
+    public AlertCenter getAlertCenter() {
+        return alertCenter;
     }
 
     public void setCurrentUser(User currentUser) {
