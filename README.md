@@ -230,6 +230,113 @@ Para correr el sistema hacen falta **dos procesos, en este orden**:
 
 Se pueden abrir varios Frontend a la vez, en la misma máquina o en máquinas distintas, contra un mismo Backend. Es la forma de ver el área de alertas funcionando: al registrar una reserva desde uno, el aviso aparece en los demás.
 
+### Ejecución en dos o más computadoras de una red local
+
+La arquitectura admite **un único Backend** y uno o varios Frontend conectados a él. Todos los equipos cliente deben poder alcanzar por TCP la computadora donde se ejecuta el Backend.
+
+**Distribución de responsabilidades**
+
+| Equipo | Componentes necesarios | Función |
+|---|---|---|
+| Computadora servidora | Backend, Java, Oracle y `db/database.properties` | Mantiene la conexión con Oracle y atiende a todos los clientes. |
+| Cada computadora cliente | Frontend y Java | Presenta la interfaz y se comunica con el Backend por sockets. No necesita Oracle ni `db/database.properties`. |
+
+**1. Preparar la computadora servidora**
+
+1. Conectar la computadora servidora y los clientes a la misma red local (Wi-Fi o Ethernet).
+2. Configurar Oracle y `db/database.properties` en la computadora servidora siguiendo la sección *Configuración*. La base de datos debe estar accesible desde ese mismo equipo.
+3. Iniciar el Backend. Por defecto escucha en el puerto TCP `5000`.
+4. Obtener la dirección IPv4 de la computadora servidora. En Windows, abrir CMD y ejecutar:
+
+   ```cmd
+   ipconfig
+   ```
+
+   Buscar la dirección **IPv4** del adaptador que está conectado a la red local (por ejemplo, `192.168.1.50`). No usar `127.0.0.1` ni la dirección de otra interfaz desconectada.
+
+5. Permitir conexiones entrantes al puerto TCP `5000` en el Firewall de Windows. Abrir PowerShell **como administrador** y ejecutar:
+
+   ```powershell
+   New-NetFirewallRule -DisplayName "Proyecto Reservas TCP 5000" -Direction Inbound -Protocol TCP -LocalPort 5000 -Action Allow -Profile Private
+   ```
+
+   La regla se limita al perfil de red privada. Si la red está configurada como pública, revisar primero el perfil de red y no ampliar la regla a redes públicas sin una necesidad justificada.
+
+**2. Conectar cada computadora cliente**
+
+1. Instalar una versión de Java compatible con el proyecto (JDK/JRE 20 o superior) en cada computadora cliente.
+2. Comprobar la conectividad desde PowerShell en cada cliente, sustituyendo la IP por la de la computadora servidora:
+
+   ```powershell
+   Test-NetConnection 192.168.1.50 -Port 5000
+   ```
+
+   La prueba debe mostrar `TcpTestSucceeded : True`. Si muestra `False`, comprobar que el Backend esté ejecutándose, que la IP sea correcta y que el Firewall permita el puerto.
+
+3. Ejecutar el Frontend indicando la IP del servidor y el puerto `5000`. Si se ejecuta desde IntelliJ, colocar ambos valores en **Run → Edit Configurations → Main → Program arguments**:
+
+   ```text
+   192.168.1.50 5000
+   ```
+
+4. Repetir el paso anterior en cada equipo cliente. Todos deben utilizar la misma IP y puerto del Backend.
+
+**3. Comprobar el funcionamiento distribuido**
+
+- Iniciar sesión desde dos equipos con usuarios/roles correspondientes.
+- Registrar una reserva desde uno de los Frontend.
+- Verificar que el otro Frontend recibe la alerta sin actualizar manualmente la pantalla.
+- Si hay varias sesiones conectadas, comprobar que todas reciben la notificación.
+- Descartar una alerta en un cliente y verificar que el descarte es local y no elimina la reserva ni la alerta de las otras sesiones.
+
+**4. Cerrar el acceso al terminar las pruebas**
+
+Primero detener el proceso Backend (botón **Stop** en IntelliJ o cerrar la consola donde corre el JAR). Después, en PowerShell como administrador, eliminar la regla del Firewall:
+
+```powershell
+Remove-NetFirewallRule -DisplayName "Proyecto Reservas TCP 5000"
+```
+
+Se puede comprobar que el servidor dejó de escuchar con:
+
+```powershell
+netstat -ano | findstr :5000
+```
+
+Si no aparece una línea `LISTENING`, no hay un proceso escuchando en ese puerto. No configurar *port forwarding* en el router: para esta prueba el acceso debe limitarse a la red local.
+
+### Ejecución del Frontend mediante JAR (sin IntelliJ)
+
+Se puede distribuir el **Frontend** como un JAR ejecutable para que las computadoras cliente utilicen el sistema sin instalar IntelliJ. El Backend continúa ejecutándose como proceso independiente en la computadora servidora, desde IntelliJ mediante `Server.ServerMain`.
+
+El JAR del Frontend debe incluir sus dependencias externas, JasperReports y el módulo `common`. Para generarlo, el módulo `frontend` debe tener configurado `maven-shade-plugin` con `Main` como clase principal. Desde la raíz del proyecto, ejecutar:
+
+```bash
+mvn -pl frontend -am clean package -DskipTests
+```
+
+Si `mvn` no está disponible en la terminal de Windows, se puede ejecutar el mismo objetivo desde la ventana **Maven** de IntelliJ, usando el proyecto raíz y la secuencia `-pl frontend -am clean package -DskipTests`.
+
+El archivo generado se encontrará en:
+
+```text
+frontend/target/sistema-reservas-frontend-1.0-SNAPSHOT.jar
+```
+
+Copiar ese JAR a cada computadora cliente. Cada cliente necesita Java 20 o superior, pero no necesita IntelliJ, Oracle ni `db/database.properties`.
+
+En cada computadora cliente, abrir CMD o PowerShell en la carpeta donde se copió el JAR y ejecutar (reemplazar la IP por la dirección IPv4 de la computadora servidora):
+
+```powershell
+java -jar sistema-reservas-frontend-1.0-SNAPSHOT.jar 192.168.1.50 5000
+```
+
+El Backend debe estar iniciado previamente en la computadora servidora y el puerto TCP `5000` debe estar permitido en su Firewall, tal como se explica en la sección anterior. Se puede comprobar la conexión desde el cliente con `Test-NetConnection 192.168.1.50 -Port 5000` antes de abrir el Frontend.
+
+**Importante:** no se distribuye un JAR del Backend. En la computadora servidora se mantienen instalados Java, Oracle y la configuración `db/database.properties`; el Backend se inicia desde IntelliJ ejecutando `Server.ServerMain`. Si se utiliza la función de IA, `GROQ_API_KEY` también se configura únicamente en esa computadora.
+
+Para detener el Frontend, cerrar su ventana. Para terminar el servicio distribuido, detener también el proceso `ServerMain` en IntelliJ y eliminar la regla del Firewall siguiendo el apartado *Cerrar el acceso al terminar las pruebas*.
+
 ## Pruebas
 
 El proyecto incluye **133 pruebas** con JUnit Jupiter, divididas como exige el enunciado entre pruebas de unidad (Surefire) y de integración (Failsafe). La convención de nombres es lo que decide qué plugin corre qué: `*Test.java` lo toma Surefire, `*IT.java` lo toma Failsafe.
@@ -317,3 +424,11 @@ El XML no se eliminó. Dejó de ser la fuente de verdad, pero se conserva como r
 - **Una conexión JDBC por operación.** `ConnectionManager.open()` devuelve una conexión nueva cada vez, con `autoCommit` apagado, y quien la pide hace `commit` al terminar bien o `rollback` si algo falló. No se comparte una sola conexión entre hilos porque `java.sql.Connection` **no es thread-safe** y el servidor atiende a cada cliente en su propio hilo. Para la escala de este sistema el costo de abrir una conexión es irrelevante, y así se evita por completo la clase de errores que aparece cuando dos hilos comparten una.
 
 - **El XML se conserva como respaldo en vez de eliminarse.** Al migrar a base de datos lo natural habría sido borrar `src/Data/system.xml` y el repositorio que lo lee. Se mantuvieron a propósito: el XML es el respaldo de los datos del Proyecto 1 y la fuente de `ImportarXmlAOracle`, que los carga en Oracle en una sola transacción. Durante el desarrollo esa decisión ya sirvió una vez, al recuperar los datos después de recrear el esquema.
+
+
+
+
+
+================================================================
+End of Codebase
+================================================================
