@@ -17,11 +17,13 @@ import java.util.Map;
  * Aceptada en verde, Rechazada en rojo, En revisión en anaranjado y
  * Cancelada en gris.
  * <p>
- * "Rechazada" se muestra además como un hipervínculo (texto subrayado,
- * con un texto de ayuda): es el único estado que se puede pulsar, para
- * ver el motivo del rechazo en {@link RejectionReasonDialog}. El clic y
- * el cursor de "mano" al pasar por encima se conectan desde el manejo de
- * eventos (ver {@link #isClickable(Object)}).
+ * "Rechazada" y "Aceptada" se muestran además como hipervínculos (texto
+ * subrayado, con un texto de ayuda): son los estados que se pueden
+ * pulsar, para ver el motivo del rechazo en {@link RejectionReasonDialog}
+ * o el detalle de la reserva aceptada (con sus recursos asignados) en
+ * {@link ReviewRequestForm}, solo para consulta. El clic y el cursor de
+ * "mano" al pasar por encima se conectan desde el manejo de eventos (ver
+ * {@link #isClickable(Object)}).
  * <p>
  * Acepta como valor de la celda un {@link State}; cualquier otro valor
  * (p. ej. una fila de relleno vacía) se muestra como texto normal.
@@ -29,10 +31,14 @@ import java.util.Map;
 public class StateCellRenderer extends DefaultTableCellRenderer {
 
     private static final String REJECTED_TOOLTIP = "Haga clic para ver el motivo del rechazo";
+    private static final String ACCEPTED_TOOLTIP = "Haga clic para ver el detalle de la reserva aceptada";
 
-    /** Indica si la celda con este valor se puede pulsar (solo "Rechazada", para ver el motivo). */
+    /**
+     * Indica si la celda con este valor se puede pulsar: "Rechazada" (para
+     * ver el motivo) y "Aceptada" (para ver la reserva y sus recursos asignados).
+     */
     public static boolean isClickable(Object value) {
-        return value == State.REJECTED;
+        return value == State.REJECTED || value == State.ACCEPTED;
     }
 
     /** Color del texto de cada estado, tomado de {@link UITheme}. */
@@ -58,7 +64,7 @@ public class StateCellRenderer extends DefaultTableCellRenderer {
             setForeground(colorOf(state));
             if (isClickable(state)) {
                 setFont(underlined(table.getFont()));
-                setToolTipText(REJECTED_TOOLTIP);
+                setToolTipText(state == State.ACCEPTED ? ACCEPTED_TOOLTIP : REJECTED_TOOLTIP);
             }
         }
         return this;

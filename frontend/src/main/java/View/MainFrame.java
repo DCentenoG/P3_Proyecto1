@@ -9,12 +9,12 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
+import javax.swing.SwingConstants;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.util.ArrayList;
 import java.util.List;
-import java.awt.GridLayout;
 
 /**
  * Ventana principal del Sistema de Reservas.
@@ -23,9 +23,11 @@ import java.awt.GridLayout;
  * y un {@link JTabbedPane} cuyo contenido varía según el rol del usuario
  * con el que se ingresó: un {@code Funcionario} ve Reservas,
  * Calendarización, Actividades y Estadísticas; un {@code Administrador}
- * ve Funcionarios, Categorías y Recursos en lugar de Reservas, y además,
- * fijo a la derecha, el {@link RequestsSidebar} con las solicitudes de
- * reserva pendientes de revisión. Al cambiar de tab, este
+ * ve Funcionarios, Categorías y Recursos en lugar de Reservas. Fijo a la
+ * derecha está el {@link AlertsPanel} con las alertas; en el caso del
+ * administrador, ese sidebar tiene dos pestañas: "Alertas" y
+ * "Solicitudes" (el {@link RequestsSidebar} con las solicitudes de
+ * reserva pendientes de revisión). Al cambiar de tab, este
  * resalta su fondo e ícono tal como se definió en el mockup.
  * <p>
  * Esta clase solo construye la interfaz gráfica; la lógica de negocio y
@@ -69,12 +71,11 @@ public class MainFrame extends JFrame {
 // El sidebar de solicitudes es exclusivo del administrador; las alertas son para todos.
         requestsSidebar = isAdmin ? new RequestsSidebar() : null;
 
-        JPanel rightColumn = new JPanel(new GridLayout(isAdmin ? 2 : 1, 1));
+        // El administrador tiene dos secciones a la derecha (alertas y solicitudes):
+        // cada una va en su propia pestaña para que ocupe todo el alto del sidebar.
+        // El funcionario solo tiene las alertas.
+        JComponent rightColumn = isAdmin ? buildSidebarTabs() : alertsPanel;
         rightColumn.setPreferredSize(new Dimension(AlertsPanel.PANEL_WIDTH, 10));
-        if (requestsSidebar != null) {
-            rightColumn.add(requestsSidebar);
-        }
-        rightColumn.add(alertsPanel);
         content.add(rightColumn, BorderLayout.EAST);
 
 // La ventana se ensancha lo que ocupa la columna derecha, para que las pestanas conserven su espacio.
@@ -109,6 +110,45 @@ public class MainFrame extends JFrame {
         return pane;
     }
 
+    /**
+     * Pestañas del sidebar del administrador: "Alertas" (izquierda) y
+     * "Solicitudes" (derecha), cada una con su sección completa. Usan la
+     * misma estética plana de las pestañas principales (activa en azul con
+     * texto blanco, inactiva en el fondo claro con texto azul), repartidas a
+     * partes iguales en el ancho del sidebar.
+     */
+    private JTabbedPane buildSidebarTabs() {
+        JTabbedPane pane = new JTabbedPane(JTabbedPane.TOP);
+        pane.setUI(new FlatTabbedPaneUI());
+        pane.setBackground(UITheme.SIDEBAR_BACKGROUND);
+        pane.setOpaque(true);
+        pane.setBorder(BorderFactory.createEmptyBorder());
+        pane.setFocusable(false);
+
+        List<SidebarTab> sidebarTabs = new ArrayList<>();
+        // El delegado de Swing suma 3 px a cada pestaña: se descuentan para que
+        // ambas quepan en una sola fila, a lo ancho del sidebar.
+        int tabWidth = AlertsPanel.PANEL_WIDTH / 2 - 3;
+        String[] titles = {"Alertas", "Solicitudes"};
+        JComponent[] sections = {alertsPanel, requestsSidebar};
+        for (int i = 0; i < titles.length; i++) {
+            SidebarTab tab = new SidebarTab(titles[i], tabWidth);
+            pane.addTab(titles[i], sections[i]);
+            pane.setTabComponentAt(i, tab);
+            sidebarTabs.add(tab);
+        }
+
+        pane.setSelectedIndex(0);
+        Runnable refresh = () -> {
+            for (int i = 0; i < sidebarTabs.size(); i++) {
+                sidebarTabs.get(i).setSelectedState(i == pane.getSelectedIndex());
+            }
+        };
+        refresh.run();
+        pane.addChangeListener(e -> refresh.run());
+        return pane;
+    }
+
     private void addTab(JTabbedPane pane, String title, String blueIcon, String whiteIcon, JComponent view) {
         TabComponent tabComponent = new TabComponent(title, blueIcon, whiteIcon);
         pane.addTab(title, view);
@@ -136,6 +176,35 @@ public class MainFrame extends JFrame {
     }
 
     public AlertsPanel getAlertsPanel() { return alertsPanel;}
+
+    /**
+     * Pestaña del sidebar del administrador: solo texto (siempre visible),
+     * con los mismos colores que las pestañas principales.
+     */
+    private static final class SidebarTab extends JPanel {
+
+        private final JLabel textLabel = new JLabel();
+
+        SidebarTab(String title, int width) {
+            super(new BorderLayout());
+            setOpaque(true);
+            setBorder(BorderFactory.createEmptyBorder(11, 0, 11, 0));
+
+            textLabel.setText(title);
+            textLabel.setFont(UITheme.TAB_FONT);
+            textLabel.setHorizontalAlignment(SwingConstants.CENTER);
+            add(textLabel, BorderLayout.CENTER);
+
+            setPreferredSize(new Dimension(width, getPreferredSize().height));
+            setSelectedState(false);
+        }
+
+        void setSelectedState(boolean selected) {
+            setBackground(selected ? UITheme.ACCENT_BLUE : UITheme.TAB_INACTIVE_BG);
+            textLabel.setForeground(selected ? UITheme.WHITE : UITheme.TEXT_BLUE);
+            repaint();
+        }
+    }
 
     /**
      * Componente visual de un tab: ícono siempre visible y etiqueta que solo

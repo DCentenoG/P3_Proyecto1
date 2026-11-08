@@ -3,6 +3,7 @@ package View;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -10,6 +11,8 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.ScrollPaneConstants;
 import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
@@ -59,6 +62,8 @@ public class ReviewRequestForm extends JDialog {
 
     private JPanel resourcesPanel;
     private JScrollPane resourcesScroll;
+    private JLabel resourcesNote;
+    private JPanel buttonsPanel;
     private final Map<String, JComboBox<String>> resourceCombos = new LinkedHashMap<>();
 
     private JButton approveButton;
@@ -159,12 +164,14 @@ public class ReviewRequestForm extends JDialog {
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
         header.add(UITheme.createLabel("Recursos"), BorderLayout.WEST);
-        header.add(UITheme.createNote("Uno disponible por categoría"), BorderLayout.EAST);
+        resourcesNote = UITheme.createNote("Uno disponible por categoría");
+        header.add(resourcesNote, BorderLayout.EAST);
         return header;
     }
 
     private JPanel buildButtonsPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 48, 0));
+        buttonsPanel = panel;
         panel.setOpaque(false);
         panel.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
 
@@ -190,30 +197,84 @@ public class ReviewRequestForm extends JDialog {
      * hubiera antes y reajusta el tamaño del formulario.
      */
     public void setRequiredCategories(List<String> categories) {
-        resourcesPanel.removeAll();
         resourceCombos.clear();
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridy = 0;
-
-        if (categories.isEmpty()) {
-            gbc.gridx = 0;
-            gbc.weightx = 1;
-            gbc.anchor = GridBagConstraints.WEST;
-            resourcesPanel.add(UITheme.createNote("La solicitud no tiene categorías requeridas."), gbc);
-        }
-
+        Map<String, JComponent> rows = new LinkedHashMap<>();
         for (String category : categories) {
-            JLabel categoryLabel = new JLabel(category);
-            categoryLabel.setFont(UITheme.FIELD_FONT);
-            categoryLabel.setForeground(UITheme.TEXT_BLUE);
-
             JComboBox<String> combo = new JComboBox<>();
             UITheme.styleCombo(combo);
             // Ancho preferido chico: la columna se estira (weightx) hasta el ancho
             // disponible, en vez de desbordar la lista de recursos por la derecha.
             combo.setPreferredSize(new Dimension(COMBO_MIN_WIDTH, combo.getPreferredSize().height));
             resourceCombos.put(category, combo);
+            rows.put(category, combo);
+        }
+        showResourceRows(rows, "La solicitud no tiene categorías requeridas.");
+    }
+
+    /**
+     * Convierte el formulario en el <b>detalle de solo lectura</b> de una
+     * reserva ya aceptada (lo que ve el funcionario al pulsar el estado
+     * "Aceptada" de "Mis reservas"): muestra los mismos datos de la
+     * solicitud y, en "Recursos", el recurso que el administrador asignó a
+     * cada categoría, todo sin poder modificarse. No tiene botones: se
+     * cierra únicamente con el botón de cerrar de la ventana.
+     *
+     * @param assignedResources por cada categoría requerida (en orden), la
+     *                          descripción del recurso asignado
+     */
+    public void showAsAcceptedDetail(Map<String, String> assignedResources) {
+        setTitle("Detalle de la reserva aceptada");
+        resourcesNote.setText("Asignados por el administrador");
+        buttonsPanel.setVisible(false);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+
+        resourceCombos.clear();
+        Map<String, JComponent> rows = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : assignedResources.entrySet()) {
+            JTextField resourceField = readOnlyField();
+            resourceField.setText(entry.getValue());
+            resourceField.setPreferredSize(new Dimension(COMBO_MIN_WIDTH, UITheme.FIELD_HEIGHT));
+            rows.put(entry.getKey(), resourceField);
+        }
+        showResourceRows(rows, "La reserva no tiene recursos asignados.");
+        // Sin foco en los campos: así no aparece el cursor de texto, que daría
+        // la impresión de que se pueden editar.
+        disableFieldFocus(getContentPane());
+    }
+
+    private static void disableFieldFocus(Container container) {
+        for (Component child : container.getComponents()) {
+            if (child instanceof JTextField) {
+                child.setFocusable(false);
+            } else if (child instanceof Container nested) {
+                disableFieldFocus(nested);
+            }
+        }
+    }
+
+    /**
+     * Arma una fila por categoría: su nombre y, a la derecha, el componente
+     * indicado (la lista para elegir al revisar, o el recurso asignado en el
+     * detalle de solo lectura). Reemplaza las filas que hubiera antes y
+     * reajusta el tamaño del formulario.
+     */
+    private void showResourceRows(Map<String, JComponent> rows, String emptyMessage) {
+        resourcesPanel.removeAll();
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridy = 0;
+
+        if (rows.isEmpty()) {
+            gbc.gridx = 0;
+            gbc.weightx = 1;
+            gbc.anchor = GridBagConstraints.WEST;
+            resourcesPanel.add(UITheme.createNote(emptyMessage), gbc);
+        }
+
+        for (Map.Entry<String, JComponent> row : rows.entrySet()) {
+            JLabel categoryLabel = new JLabel(row.getKey());
+            categoryLabel.setFont(UITheme.FIELD_FONT);
+            categoryLabel.setForeground(UITheme.TEXT_BLUE);
 
             gbc.gridx = 0;
             gbc.weightx = 0;
@@ -226,7 +287,7 @@ public class ReviewRequestForm extends JDialog {
             gbc.weightx = 1;
             gbc.fill = GridBagConstraints.HORIZONTAL;
             gbc.insets = new Insets(gbc.gridy == 0 ? 0 : 8, 0, 0, 0);
-            resourcesPanel.add(combo, gbc);
+            resourcesPanel.add(row.getValue(), gbc);
 
             gbc.gridy++;
         }
