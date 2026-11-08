@@ -137,6 +137,11 @@ public final class ServiceProxy implements IService, AutoCloseable {
         call("changePassword", userId, currentPassword, newPassword);
     }
 
+    @Override
+    public void logout() throws ServiceException {
+        call("logout");
+    }
+    
     //--- Funcionarios ---
 
     @Override
