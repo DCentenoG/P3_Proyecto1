@@ -39,6 +39,9 @@ final class TopBarListener {
             return;
         }
         session.setCurrentUser(null);
+
+        session.getAlertCenter().reset();
+
         mainFrame.dispose();
 
         LoginFrame loginFrame = new LoginFrame();

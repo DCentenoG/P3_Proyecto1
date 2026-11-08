@@ -14,6 +14,7 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.util.ArrayList;
 import java.util.List;
+import java.awt.GridLayout;
 
 /**
  * Ventana principal del Sistema de Reservas.
@@ -37,6 +38,7 @@ public class MainFrame extends JFrame {
     private final JTabbedPane tabbedPane;
     private final RequestsSidebar requestsSidebar;
     private final List<TabComponent> tabComponents = new ArrayList<>();
+    private final AlertsPanel alertsPanel;
 
     public MainFrame(User user) {
         super("Sistema de Reservas");
@@ -63,18 +65,22 @@ public class MainFrame extends JFrame {
         main.add(tabbedPane, BorderLayout.CENTER);
         content.add(main, BorderLayout.CENTER);
 
-        // El sidebar es exclusivo del administrador: un funcionario no lo tiene.
+        alertsPanel = new AlertsPanel();
+// El sidebar de solicitudes es exclusivo del administrador; las alertas son para todos.
         requestsSidebar = isAdmin ? new RequestsSidebar() : null;
-        int sidebarWidth = 0;
-        if (requestsSidebar != null) {
-            content.add(requestsSidebar, BorderLayout.EAST);
-            sidebarWidth = RequestsSidebar.SIDEBAR_WIDTH;
-        }
 
-        // Con el sidebar, la ventana se ensancha lo mismo que él ocupa, para que
-        // el contenido de las pestañas conserve el mismo espacio que antes.
-        setSize(900 + sidebarWidth, 640);
-        setMinimumSize(new Dimension(820 + sidebarWidth, 560));
+        JPanel rightColumn = new JPanel(new GridLayout(isAdmin ? 2 : 1, 1));
+        rightColumn.setPreferredSize(new Dimension(AlertsPanel.PANEL_WIDTH, 10));
+        if (requestsSidebar != null) {
+            rightColumn.add(requestsSidebar);
+        }
+        rightColumn.add(alertsPanel);
+        content.add(rightColumn, BorderLayout.EAST);
+
+// La ventana se ensancha lo que ocupa la columna derecha, para que las pestanas conserven su espacio.
+        int sidebarWidth = AlertsPanel.PANEL_WIDTH;
+        setSize(900 + sidebarWidth, 680);
+        setMinimumSize(new Dimension(820 + sidebarWidth, 600));
         setLocationRelativeTo(null);
     }
 
@@ -128,6 +134,8 @@ public class MainFrame extends JFrame {
     public RequestsSidebar getRequestsSidebar() {
         return requestsSidebar;
     }
+
+    public AlertsPanel getAlertsPanel() { return alertsPanel;}
 
     /**
      * Componente visual de un tab: ícono siempre visible y etiqueta que solo
