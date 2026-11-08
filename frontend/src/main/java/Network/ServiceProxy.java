@@ -15,6 +15,7 @@ import Protocol.Response;
 import Service.ExtractedReservationData;
 import Service.IService;
 import Service.ServiceException;
+import Protocol.Hello;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -44,13 +45,35 @@ public final class ServiceProxy implements IService, AutoCloseable {
     private final DataInputStream in;
     private final DataOutputStream out;
     private final Object ioLock = new Object();
+    private final String sessionId;
     private boolean closed;
 
     public ServiceProxy(String host, int port) throws IOException {
         socket.connect(new InetSocketAddress(host, port), CONNECT_TIMEOUT_MS);
-        socket.setSoTimeout(READ_TIMEOUT_MS);
         in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
         out = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+        sessionId = handshake();
+    }
+
+    /* Saludo: el servidor responde con el id de sesion, que identifica luego el canal de notificaciones. */
+    private String handshake() throws IOException {
+        socket.setSoTimeout(CONNECT_TIMEOUT_MS);
+        try {
+            MessageCodec.writeFrame(out, MessageCodec.encode(Hello.request()));
+            Object reply = MessageCodec.decode(MessageCodec.readFrame(in));
+            if (reply instanceof Response response && response.isSuccessful()
+                    && response.getPayload() instanceof String id) {
+                socket.setSoTimeout(READ_TIMEOUT_MS);
+                return id;
+            }
+            throw new IOException("El servidor rechazo la conexion.");
+        } catch (ClassNotFoundException e) {
+            throw new IOException("Respuesta de saludo no reconocida.", e);
+        }
+    }
+
+    public String getSessionId() {
+        return sessionId;
     }
 
     /*
