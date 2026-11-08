@@ -8,8 +8,8 @@ Sistema de escritorio en Java (Swing) para que funcionarios y administradores de
 
 | Integrante | Rol dentro del proyecto |
 |---|---|
-| **Daniel Centeno Gutierrez** | Funcionalidades de la capa Vista, capa Controlador, generación de reportes PDF y autocompletado de reservas por IA |
-| **Juan Pablo Arroyo Zumbado** | Lógica interna de la capa Modelo y manejo de excepciones, capa Controlador y autocompletado de reservas por IA |
+| **Daniel Centeno Gutierrez** | Funcionalidades de la capa Vista, capa Controlador, generación de reportes PDF y autocompletado de reservas por IA (Proyecto 1) |
+| **Juan Pablo Arroyo Zumbado** | Lógica interna de la capa Modelo y manejo de excepciones, capa Controlador y autocompletado de reservas por IA (Proyecto 1)|
 
 ## Funcionalidades implementadas
 
