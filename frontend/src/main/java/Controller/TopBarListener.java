@@ -4,6 +4,7 @@ import View.LoginFrame;
 import View.MainFrame;
 import View.PasswordChangeForm;
 import View.TopBar;
+import Service.ServiceException;
 
 /**
  * Maneja los eventos de {@link TopBar} dentro de {@link MainFrame}:
@@ -37,6 +38,12 @@ final class TopBarListener {
     private void onLogout() {
         if (!DialogHelper.confirm(mainFrame, "¿Desea cerrar sesión?")) {
             return;
+        }
+
+        try {
+            session.getService().logout();
+        } catch (ServiceException ex) {
+            // Aunque el servidor no responda, la sesion local se cierra igual.
         }
         session.setCurrentUser(null);
 

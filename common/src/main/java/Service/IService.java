@@ -54,6 +54,11 @@ public interface IService {
     /** Cambia la clave del usuario, verificando primero la actual. */
     void changePassword(int userId, String currentPassword, String newPassword) throws ServiceException;
 
+    /**
+     * Cierra la sesion del usuario autenticado en esta conexion: el servidor deja de
+     * enviarle avisos dirigidos a el. La conexion sigue abierta para el proximo login.
+     */
+    void logout() throws ServiceException;
     //--- Funcionarios ---
 
     List<Employee> listEmployees() throws ServiceException;

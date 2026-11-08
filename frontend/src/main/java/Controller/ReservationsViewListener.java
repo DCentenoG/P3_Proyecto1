@@ -226,6 +226,11 @@ public final class ReservationsViewListener {
         this.afterReservationChange = (callback != null) ? callback : () -> { };
     }
 
+    /** Vuelve a pedir y pintar "Mis reservas": se usa cuando llega el aviso de que se reviso una solicitud. */
+    public void refresh() {
+        renderReservations();
+    }
+
     // ------------------------------------------------------------------
     // Categorías requeridas (selectores de fecha/hora: ver wire())
     // ------------------------------------------------------------------

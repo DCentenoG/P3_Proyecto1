@@ -146,6 +146,34 @@ public final class MainFrameListener {
             });
         }
 
+        // Cuando llega un aviso del servidor, se refrescan las pantallas que cambian con el.
+        ReservationsViewListener reservationsForAlerts = reservationsListener;
+        CalendarViewListener calendarForAlerts = calendarListener;
+        ActivitySchedulingViewListener activityForAlerts = activityListener;
+        RequestsSidebarListener sidebarForAlerts = sidebarListener;
+        session.getAlertCenter().setOnNotification(notification -> {
+            switch (notification.getType()) {
+                case NEW_RESERVATION -> {
+                    // Entro una solicitud nueva: el sidebar del administrador la muestra sin recargar.
+                    if (sidebarForAlerts != null) {
+                        sidebarForAlerts.refresh();
+                    }
+                }
+                case RESERVATION_APPROVED, RESERVATION_REJECTED -> {
+                    // El administrador reviso una solicitud del funcionario.
+                    if (reservationsForAlerts != null) {
+                        reservationsForAlerts.refresh();
+                    }
+                    if (calendarForAlerts != null) {
+                        calendarForAlerts.refresh();
+                    }
+                    if (activityForAlerts != null) {
+                        activityForAlerts.refresh();
+                    }
+                }
+            }
+        });
+
         new AlertsPanelListener(mainFrame.getAlertsPanel(), session);
     }
 }

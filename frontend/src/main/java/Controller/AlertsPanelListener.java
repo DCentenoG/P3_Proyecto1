@@ -1,13 +1,17 @@
 package Controller;
 
 import Dto.ReservationSummary;
+import Protocol.Notification;
 import View.AlertsPanel;
+import View.RejectionReasonDialog;
 import View.ReservationDetailsDialog;
 
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
+import java.awt.Window;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.List;
 
 /*
@@ -35,25 +39,44 @@ public final class AlertsPanelListener {
     }
 
     private void render() {
-        panel.showAlerts(center.getAlerts());
+        List<String> labels = new ArrayList<>();
+        for (AlertCenter.Alert alert : center.getAlerts()) {
+            labels.add(alert.label());
+        }
+        panel.showAlerts(labels);
     }
 
     private void onClick(MouseEvent e) {
         JTable table = panel.getTable();
         int row = table.rowAtPoint(e.getPoint());
         int column = table.columnAtPoint(e.getPoint());
-        List<ReservationSummary> alerts = center.getAlerts();
+        List<AlertCenter.Alert> alerts = center.getAlerts();
         if (row < 0 || row >= alerts.size()) {
             return;
         }
-        ReservationSummary alert = alerts.get(row);
+        AlertCenter.Alert alert = alerts.get(row);
 
         if (column == AlertsPanel.VIEW_COLUMN) {
-            new ReservationDetailsDialog(SwingUtilities.getWindowAncestor(panel), alert).setVisible(true);
+            showDetail(alert);
         } else if (column == AlertsPanel.DISMISS_COLUMN
                 && DialogHelper.confirm(panel, "¿Desea descartar esta alerta?")) {
-            // Por id y no por posicion: mientras el dialogo estaba abierto pudieron llegar alertas nuevas.
-            center.remove(alert.reservationId());
+            // Por id de alerta y no por posicion: mientras el dialogo estaba abierto pudieron llegar alertas nuevas.
+            center.remove(alert.id());
+        }
+    }
+
+    /* Una alerta de rechazo muestra el motivo; las demas, el detalle de la reserva. */
+    private void showDetail(AlertCenter.Alert alert) {
+        Window owner = SwingUtilities.getWindowAncestor(panel);
+        ReservationSummary reservation = alert.reservation();
+        if (alert.type() == Notification.Type.RESERVATION_REJECTED) {
+            String summary = reservation.activity() + " · "
+                    + reservation.date().format(ReservationFormSupport.DATE_FORMAT) + " · "
+                    + reservation.startTime().format(ReservationFormSupport.TIME_FORMAT) + " - "
+                    + reservation.endTime().format(ReservationFormSupport.TIME_FORMAT);
+            new RejectionReasonDialog(owner, summary, alert.reason()).setVisible(true);
+        } else {
+            new ReservationDetailsDialog(owner, reservation).setVisible(true);
         }
     }
 }

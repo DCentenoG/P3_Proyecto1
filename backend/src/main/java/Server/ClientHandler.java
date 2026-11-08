@@ -3,7 +3,10 @@ package Server;
 import Dto.ReservationSummary;
 import Model.Employee;
 import Model.Reservation;
+import Model.Resource;
 import Model.ResourceCategory;
+import Model.User;
+import Model.exceptions.ReservationNotFoundException;
 import Protocol.MessageCodec;
 import Protocol.Notification;
 import Protocol.Request;
@@ -30,8 +33,12 @@ final class ClientHandler implements Runnable {
     /* No tocan los datos compartidos: no deben frenar a los demas clientes. */
     private static final Set<String> LOCK_FREE_OPERATIONS = Set.of("extractReservationFromPhrase");
 
-    /* Lo que sale de procesar una peticion: la respuesta y, si aplica, un aviso para los demas. */
-    private record Outcome(byte[] reply, Notification notification) {
+    /* A quien va el aviso: a un usuario concreto o, si targetUserId es null, a todos menos a quien lo origino. */
+    private record Delivery(Notification notification, Integer targetUserId) {
+    }
+
+    /* Lo que sale de procesar una peticion: la respuesta y, si aplica, un aviso para otros clientes. */
+    private record Outcome(byte[] reply, Delivery delivery) {
     }
 
     private final Socket socket;
@@ -69,10 +76,8 @@ final class ClientHandler implements Runnable {
                 }
                 Outcome outcome = process(frame);
                 MessageCodec.writeFrame(out, outcome.reply());
-                // Fuera del candado: el broadcast escribe en sockets y no debe frenar a los demas hilos.
-                if (outcome.notification() != null) {
-                    registry.broadcastExcept(sessionId, outcome.notification());
-                }
+                // Fuera del candado: el envio escribe en sockets y no debe frenar a los demas hilos.
+                deliver(outcome.delivery());
             }
         } catch (IOException e) {
             System.out.println("Conexion con " + client + " terminada: " + e.getMessage());
@@ -84,6 +89,17 @@ final class ClientHandler implements Runnable {
                 // ya estaba cerrado
             }
             System.out.println("Cliente desconectado: " + client);
+        }
+    }
+
+    private void deliver(Delivery delivery) {
+        if (delivery == null) {
+            return;
+        }
+        if (delivery.targetUserId() == null) {
+            registry.broadcastExcept(sessionId, delivery.notification());
+        } else {
+            registry.sendToUser(delivery.targetUserId(), delivery.notification());
         }
     }
 
@@ -113,9 +129,13 @@ final class ClientHandler implements Runnable {
 
     private Outcome invokeAndEncode(Method operation, Request request) {
         Response response = invoke(operation, request);
-        Notification notification = response.isSuccessful() ? alertFor(request, response) : null;
+        Delivery delivery = null;
+        if (response.isSuccessful()) {
+            updateSession(request, response);
+            delivery = deliveryFor(request, response);
+        }
         try {
-            return new Outcome(MessageCodec.encode(response), notification);
+            return new Outcome(MessageCodec.encode(response), delivery);
         } catch (IOException e) {
             e.printStackTrace();
             return failure("El servidor no pudo preparar la respuesta.");
@@ -137,29 +157,76 @@ final class ClientHandler implements Runnable {
         }
     }
 
-    /*
-    Aviso para los demas clientes cuando se registra una reserva nueva. Una reserva
-    recien creada esta "En revision" y todavia no tiene recursos asignados, asi que
-    en el lugar de los recursos se informan las categorias que se solicitaron.
-    */
-    private Notification alertFor(Request request, Response response) {
-        if (!"createReservation".equals(request.getMethod())
-                || !(response.getPayload() instanceof Reservation reservation)) {
-            return null;
-        }
-        try {
-            Employee employee = service.findEmployeeById((Integer) request.getArgs()[0]);
-            List<String> categories = new ArrayList<>();
-            for (ResourceCategory category : reservation.getRequiredCategories()) {
-                categories.add(category.getDescription());
+    /* Un login correcto asocia la sesion con su usuario; un logout la desasocia. */
+    private void updateSession(Request request, Response response) {
+        switch (request.getMethod()) {
+            case "login" -> {
+                if (response.getPayload() instanceof User user) {
+                    registry.bindUser(sessionId, user.getId());
+                }
             }
-            return Notification.newReservation(new ReservationSummary(reservation.getId(),
-                    reservation.getActivity(), employee.getName(), reservation.getDate(),
-                    reservation.getStartTime(), reservation.getEndTime(), categories));
-        } catch (ServiceException | RuntimeException e) {
-            System.err.println("No se pudo armar la alerta: " + e.getMessage());
+            case "logout" -> registry.unbindUser(sessionId);
+            default -> {
+                // las demas operaciones no cambian de quien es la sesion
+            }
+        }
+    }
+
+    /* Aviso que corresponde a una operacion que acaba de salir bien, o null si no genera ninguno. */
+    private Delivery deliveryFor(Request request, Response response) {
+        try {
+            return switch (request.getMethod()) {
+                case "createReservation" -> newReservationDelivery(request, response);
+                case "approveRequest" -> reviewDelivery(request, true);
+                case "rejectRequest" -> reviewDelivery(request, false);
+                default -> null;
+            };
+        } catch (ServiceException | ReservationNotFoundException | RuntimeException e) {
+            System.err.println("No se pudo armar el aviso: " + e.getMessage());
             return null;
         }
+    }
+
+    /*
+    Reserva nueva: se avisa a todos los demas clientes. Una reserva recien creada esta
+    "En revision" y todavia no tiene recursos asignados, asi que en el lugar de los
+    recursos se informan las categorias que se solicitaron.
+    */
+    private Delivery newReservationDelivery(Request request, Response response) throws ServiceException {
+        if (!(response.getPayload() instanceof Reservation reservation)) {
+            return null;
+        }
+        Employee employee = service.findEmployeeById((Integer) request.getArgs()[0]);
+        List<String> categories = new ArrayList<>();
+        for (ResourceCategory category : reservation.getRequiredCategories()) {
+            categories.add(category.getDescription());
+        }
+        return new Delivery(Notification.newReservation(summaryOf(employee, reservation, categories)), null);
+    }
+
+    /* Solicitud revisada: se avisa solo al funcionario duenio de la reserva. */
+    private Delivery reviewDelivery(Request request, boolean approved)
+            throws ServiceException, ReservationNotFoundException {
+        int employeeId = (Integer) request.getArgs()[0];
+        int reservationId = (Integer) request.getArgs()[1];
+        Employee employee = service.findEmployeeById(employeeId);
+        Reservation reservation = employee.getReservationById(reservationId);
+
+        if (approved) {
+            List<String> resources = new ArrayList<>();
+            for (Resource resource : reservation.getAssignedResources()) {
+                resources.add(resource.getDescription());
+            }
+            return new Delivery(Notification.reservationApproved(summaryOf(employee, reservation, resources)),
+                    employeeId);
+        }
+        return new Delivery(Notification.reservationRejected(summaryOf(employee, reservation, List.of()),
+                reservation.getRejectionReason()), employeeId);
+    }
+
+    private static ReservationSummary summaryOf(Employee employee, Reservation reservation, List<String> details) {
+        return new ReservationSummary(reservation.getId(), reservation.getActivity(), employee.getName(),
+                reservation.getDate(), reservation.getStartTime(), reservation.getEndTime(), details);
     }
 
     /* Respuesta de error, que solo lleva texto y siempre se puede serializar. */
