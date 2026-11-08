@@ -39,3 +39,9 @@ build/
 
 ### Residuos del proyecto plano de IntelliJ (anterior a Maven) ###
 out/
+
+### Base de datos: configuracion local con credenciales ###
+db/database.properties
+
+### Prueba de conexion desechable (contiene la clave en el codigo) ###
+**/PruebaConexionOracle.java

@@ -45,6 +45,9 @@
                 <reservation activity="audiencia de impuestos" date="2026-11-09" endTime="16:00" id="8" notificationReceivedAt="2026-11-07T16:22:47.229889300" startTime="11:00" state="IN_REVIEW">
                     <requiredCategory categoryId="CAT-000001"/>
                 </reservation>
+                <reservation activity="Prueba 5" date="2026-11-09" endTime="10:00" id="9" notificationReceivedAt="2026-11-07T21:39:29.302566300" startTime="06:00" state="CANCELLED">
+                    <requiredCategory categoryId="CAT-000001"/>
+                </reservation>
             </reservations>
         </user>
         <user id="3" name="Maria Gomez Solano" password="3" phoneNumber="87772222" type="EMPLOYEE">
