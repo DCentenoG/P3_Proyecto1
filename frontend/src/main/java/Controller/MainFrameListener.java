@@ -145,5 +145,7 @@ public final class MainFrameListener {
                 }
             });
         }
+
+        new AlertsPanelListener(mainFrame.getAlertsPanel(), session);
     }
 }
