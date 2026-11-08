@@ -54,6 +54,8 @@ public final class LoginFrameListener {
             return;
         }
 
+        session.getAlertCenter().reset();
+
         session.setCurrentUser(user);
         MainFrame mainFrame = new MainFrame(user);
         new MainFrameListener(mainFrame, session);
