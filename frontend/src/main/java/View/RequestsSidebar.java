@@ -60,7 +60,7 @@ public class RequestsSidebar extends JPanel {
     /** Margen interno izquierdo y derecho del sidebar. */
     private static final int SIDE_PADDING = 12;
 
-    private static final String TITLE = "Solicitudes";
+    private static final String TITLE = "Gestionar solicitudes";
     private static final String NO_REQUESTS_MESSAGE = "No hay solicitudes para reservas pendientes de revisión.";
     /** Filas en blanco iniciales, para que la tabla se vea como en el mockup aun sin datos. */
     private static final int BLANK_ROWS = 12;

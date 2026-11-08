@@ -3,6 +3,7 @@ package Controller;
 import Model.Employee;
 import Model.Reservation;
 import Model.Resource;
+import Model.ResourceCategory;
 import Model.State;
 import Report.ReportException;
 import Report.ReportService;
@@ -11,6 +12,7 @@ import Service.ServiceException;
 import View.EditReservationForm;
 import View.RejectionReasonDialog;
 import View.ReservationsView;
+import View.ReviewRequestForm;
 import View.StateCellRenderer;
 
 import javax.swing.JTable;
@@ -22,6 +24,7 @@ import java.awt.event.MouseEvent;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -97,7 +100,7 @@ public final class ReservationsViewListener {
         // un clic en ellos no debe deseleccionarla antes de ejecutarse.
         TableInteractionUtil.deselectOnClickOutside(view.getReservationsTable(),
                 view.getEditButton(), view.getCancelButton());
-        wireRejectedStateLink();
+        wireStateLinks();
     }
 
     /* Las reservas viven en el Backend: se vuelven a pedir antes de pintar la tabla. */
@@ -110,17 +113,23 @@ public final class ReservationsViewListener {
     }
 
     /**
-     * El estado "Rechazada" de "Mis reservas" funciona como un hipervínculo
-     * (ver {@link StateCellRenderer}): al pasar el mouse por encima el
-     * cursor cambia a una "mano", y al pulsarlo se abre
-     * {@link RejectionReasonDialog} con el motivo que indicó el administrador.
+     * Los estados "Rechazada" y "Aceptada" de "Mis reservas" funcionan como
+     * hipervínculos (ver {@link StateCellRenderer}): al pasar el mouse por
+     * encima el cursor cambia a una "mano", y al pulsarlos se abre:
+     * <ul>
+     *   <li>"Rechazada": {@link RejectionReasonDialog}, con el motivo que
+     *       indicó el administrador;</li>
+     *   <li>"Aceptada": el formulario de revisión ({@link ReviewRequestForm})
+     *       en modo de solo lectura, con la reserva tal como se aceptó y el
+     *       recurso asignado a cada categoría.</li>
+     * </ul>
      */
-    private void wireRejectedStateLink() {
+    private void wireStateLinks() {
         JTable table = view.getReservationsTable();
         MouseAdapter link = new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
-                table.setCursor(rejectedReservationAt(e) != null
+                table.setCursor(linkedReservationAt(e) != null
                         ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
                         : Cursor.getDefaultCursor());
             }
@@ -132,9 +141,14 @@ public final class ReservationsViewListener {
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                Reservation rejected = rejectedReservationAt(e);
-                if (rejected != null) {
-                    showRejectionReason(rejected);
+                Reservation reservation = linkedReservationAt(e);
+                if (reservation == null) {
+                    return;
+                }
+                if (reservation.getState() == State.REJECTED) {
+                    showRejectionReason(reservation);
+                } else if (reservation.getState() == State.ACCEPTED) {
+                    showAcceptedDetail(reservation);
                 }
             }
         };
@@ -142,8 +156,8 @@ public final class ReservationsViewListener {
         table.addMouseMotionListener(link);
     }
 
-    /** La reserva "Rechazada" cuya celda de Estado está bajo el mouse, o {@code null} si no hay ninguna. */
-    private Reservation rejectedReservationAt(MouseEvent e) {
+    /** La reserva cuya celda de Estado (pulsable) está bajo el mouse, o {@code null} si no hay ninguna. */
+    private Reservation linkedReservationAt(MouseEvent e) {
         JTable table = view.getReservationsTable();
         int row = table.rowAtPoint(e.getPoint());
         int column = table.columnAtPoint(e.getPoint());
@@ -159,6 +173,53 @@ public final class ReservationsViewListener {
                 + reservation.getStartTime().format(TIME_FORMAT) + " - " + reservation.getEndTime().format(TIME_FORMAT);
         new RejectionReasonDialog(SwingUtilities.getWindowAncestor(view), summary, reservation.getRejectionReason())
                 .setVisible(true);
+    }
+
+    /** Abre, solo para consultar, la reserva aceptada en el mismo formulario con que el administrador la revisó. */
+    private void showAcceptedDetail(Reservation reservation) {
+        ReviewRequestForm form = new ReviewRequestForm(SwingUtilities.getWindowAncestor(view));
+        form.setEmployeeId(String.valueOf(employee.getId()));
+        form.setEmployeeName(employee.getName());
+        form.setActivity(reservation.getActivity());
+        form.setDate(reservation.getDate().format(DATE_FORMAT));
+        form.setStartTime(reservation.getStartTime().format(TIME_FORMAT));
+        form.setEndTime(reservation.getEndTime().format(TIME_FORMAT));
+        form.showAsAcceptedDetail(assignedResourcesByCategory(reservation));
+        form.setVisible(true);
+    }
+
+    /**
+     * Por cada categoría requerida (en el orden en que se pidieron), la
+     * descripción del recurso que se le asignó. Si quedara algún recurso
+     * asignado de una categoría que no figura entre las requeridas, se
+     * agrega al final para no ocultarlo.
+     */
+    private static Map<String, String> assignedResourcesByCategory(Reservation reservation) {
+        List<Resource> pending = new ArrayList<>(reservation.getAssignedResources());
+        Map<String, String> result = new LinkedHashMap<>();
+        for (ResourceCategory category : reservation.getRequiredCategories()) {
+            Resource assigned = null;
+            for (Resource resource : pending) {
+                if (category.getId() != null && category.getId().equals(resource.getCategoryId())) {
+                    assigned = resource;
+                    break;
+                }
+            }
+            if (assigned != null) {
+                pending.remove(assigned);
+            }
+            result.put(category.getDescription(), assigned != null ? assigned.getDescription() : "Sin asignar");
+        }
+        for (Resource resource : pending) {
+            ResourceCategory category = resource.getResourceCategoryReference();
+            String name = category != null ? category.getDescription() : "Recurso";
+            // Evita pisar una fila ya existente con el mismo nombre de categoría.
+            while (result.containsKey(name)) {
+                name = name + " ";
+            }
+            result.put(name, resource.getDescription());
+        }
+        return result;
     }
 
     public void setAfterReservationChange(Runnable callback) {
