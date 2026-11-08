@@ -1,0 +1,27 @@
+# ===========================================================================
+#  Configuracion de conexion a la base de datos - Sistema de Reserva de Recursos
+#
+#  COMO USARLO:
+#    1. Copiar este archivo como db/database.properties
+#    2. Completar los valores
+#
+#  db/database.properties NO se sube al repositorio (esta en .gitignore),
+#  porque contiene la clave. Este .example si se sube, para que cualquiera
+#  sepa que hace falta configurar.
+#
+#  Tambien se puede apuntar a otro archivo con la variable de entorno
+#  RESERVAS_DB_CONFIG.
+# ===========================================================================
+
+db.host=localhost
+db.port=1521
+
+# Nombre del SERVICIO, no el SID. Para saber cual es, correr "lsnrctl status"
+# y buscar las lineas Service "XXXX" has 1 instance(s).
+#   XE / XEXDB   Oracle XE 11g
+#   XEPDB1       Oracle XE 21c
+#   FREEPDB1     Oracle 23ai FREE
+db.service=XEXDB
+
+db.user=system
+db.password=CAMBIAME

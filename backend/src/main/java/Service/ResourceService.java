@@ -40,7 +40,7 @@ public class ResourceService {
         } catch (CategoryNotFoundException ignored) {
             service.getCategories().addCategory(normalized);
         }
-        service.save();
+        service.insertCategory(findCategoryByDescription(normalized));
         return findCategoryByDescription(normalized);
     }
 
@@ -60,7 +60,7 @@ public class ResourceService {
         }
 
         category.setDescription(normalized);
-        service.save();
+        service.updateCategoryDescription(category.getId(), normalized);
     }
 
     public void removeCategory(String id, String description) throws ServiceException {
@@ -69,12 +69,22 @@ public class ResourceService {
             throw new ServiceException(
                     "No se puede eliminar la categoria '" + description + "' porque todavia tiene recursos asociados.");
         }
+        // La base no permite borrar una categoria que alguna reserva haya solicitado,
+        // aunque esa reserva ya este cancelada o rechazada: las filas de
+        // RESERVA_CATEGORIA la referencian. Se consulta antes para dar un mensaje
+        // entendible en lugar de dejar que falle la clave foranea.
+        int reservations = service.countReservationsRequiring(id);
+        if (reservations > 0) {
+            throw new ServiceException("No se puede eliminar la categoria '" + description
+                    + "' porque " + reservations + (reservations == 1 ? " reserva la solicito."
+                    : " reservas la solicitaron."));
+        }
         try {
             service.getCategories().deleteCategoryByIdAndDescription(id, description);
         } catch (CategoryNotFoundException e) {
             throw new ServiceException("No fue posible eliminar la categoria indicada.", e);
         }
-        service.save();
+        service.deleteCategory(id);
     }
 
     private ResourceCategory requireCategory(String id, String description) throws ServiceException {
@@ -108,7 +118,7 @@ public class ResourceService {
         } catch (DuplicateResourceException e) {
             throw new ServiceException("Ya existe un recurso con el id '" + id + "' en esa categoria.", e);
         }
-        service.save();
+        service.insertResource(category.getId(), id, description.trim());
         return getResource(category, id);
     }
 
@@ -127,18 +137,28 @@ public class ResourceService {
             throw new ServiceException("Debe indicar la nueva descripcion del recurso.");
         }
         resource.setDescription(newDescription.trim());
-        service.save();
+        service.saveMovedResource(resource.getCategoryId(), resource.getId(),
+                resource.getCategoryId(), resource.getId(), resource.getDescription());
     }
 
     public void removeResource(String categoryDescription, int id, String description) throws ServiceException {
         ResourceCategory category = requireCategory(categoryDescription);
+        // Este metodo no verificaba si el recurso estaba asignado a alguna reserva.
+        // La clave foranea de RESERVA_RECURSO lo impide, asi que se consulta antes
+        // para dar un mensaje entendible en vez de un error de Oracle.
+        int reservations = service.countReservationsUsing(category.getId(), id);
+        if (reservations > 0) {
+            throw new ServiceException("No se puede eliminar el recurso '" + description
+                    + "' porque esta asignado a " + reservations
+                    + (reservations == 1 ? " reserva." : " reservas."));
+        }
         try {
             category.deleteResourceByIdAndDescription(id, description);
         } catch (ResourceNotFoundException e) {
             throw new ServiceException(
                     "No existe el recurso indicado en la categoria seleccionada.", e);
         }
-        service.save();
+        service.deleteResource(category.getId(), id);
     }
 
     /*
@@ -185,7 +205,11 @@ public class ResourceService {
             removeAddedResource(destination, movedResource);
             throw new ServiceException("No fue posible eliminar el recurso de su categoria original.", e);
         }
-        service.save();
+        // La identidad de un recurso es la pareja (categoria, id): al cambiar de
+        // categoria hay que reapuntar las filas de RESERVA_RECURSO que lo tenian
+        // asignado. Por eso se le pasa la identidad anterior y la nueva.
+        service.saveMovedResource(sourceCategoryId, resourceId,
+                destinationCategoryId, movedResource.getId(), movedResource.getDescription());
     }
 
     /*
@@ -242,7 +266,12 @@ public class ResourceService {
             }
             resource.setDescription(newDescription.trim());
         }
-        service.save();
+        // Identidad anterior: (sourceCategoryId, resourceId), que son los parametros
+        // con los que se localizo el recurso, antes de cualquier mutacion. Identidad
+        // nueva: (destinationCategoryId, newId) -- y cuando no cambio de categoria,
+        // destinationCategoryId es igual a sourceCategoryId.
+        service.saveMovedResource(sourceCategoryId, resourceId,
+                destinationCategoryId, newId, newDescription.trim());
     }
 
     private ResourceCategory requireCategory(String categoryDescription) throws ServiceException {

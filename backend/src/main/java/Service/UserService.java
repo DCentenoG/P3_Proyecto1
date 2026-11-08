@@ -55,7 +55,8 @@ public class UserService {
         }
 
         user.setPassword(newPassword);
-        service.save();
+        // Solo cambio la clave: un UPDATE de una columna, no un volcado completo.
+        service.updatePassword(userId, newPassword);
     }
 
     /** Usuario con ese id, sea administrador o funcionario. */
@@ -110,8 +111,9 @@ public class UserService {
 
         //addEmployee genera el id y usa el mismo id como clave inicial (regla del enunciado)
         service.getUsers().addEmployee(name.trim(), phoneNumber);
-        service.save();
-        return findEmployeeByName(name.trim());
+        Employee created = findEmployeeByName(name.trim());
+        service.insertUser(created);
+        return created;
     }
 
     public Employee addEmployee(String name, int phoneNumber) throws ServiceException {
@@ -138,7 +140,7 @@ public class UserService {
 
         employee.setName(newName.trim());
         employee.setPhoneNumber(newPhoneNumber);
-        service.save();
+        service.updateEmployee(employee.getId(), employee.getName(), employee.getPhoneNumber());
     }
 
     public void updateEmployee(int id, String newName, int newPhoneNumber) throws ServiceException {
@@ -161,12 +163,14 @@ public class UserService {
                     "No se puede eliminar al funcionario '" + name + "' porque tiene reservas registradas.");
         }
 
+        // El id se captura antes de sacarlo del contenedor: despues ya no se puede consultar.
+        int employeeId = employee.getId();
         try {
             service.getUsers().removeEmployeeByNameAndPhoneNumber(name, phoneNumber);
         } catch (EmployeeNotFoundException e) {
             throw new ServiceException("No fue posible eliminar el funcionario indicado.", e);
         }
-        service.save();
+        service.deleteUser(employeeId);
     }
 
     private int parsePhoneNumber(String phoneText) throws ServiceException {
@@ -192,9 +196,10 @@ public class UserService {
         }
 
         service.getUsers().addAdmin(password);
-        service.save();
 
         List<User> users = service.getUsers().getUsers();
-        return (Admin) users.get(users.size() - 1);
+        Admin created = (Admin) users.get(users.size() - 1);
+        service.insertUser(created);
+        return created;
     }
 }
