@@ -115,6 +115,11 @@ public class LocalService implements IService {
         userService.changePassword(userId, currentPassword, newPassword);
     }
 
+    @Override
+    public void logout() {
+        // Sin estado propio: quien esta conectado lo lleva el servidor de sockets.
+    }
+
     //--- Funcionarios ---
 
     @Override
