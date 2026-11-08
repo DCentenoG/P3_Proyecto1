@@ -1,7 +1,5 @@
 package View;
 
-import Dto.ReservationSummary;
-
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
@@ -95,14 +93,14 @@ public class AlertsPanel extends JPanel {
         return alertsTable;
     }
 
-    /** Muestra las alertas en el orden recibido, actualiza el contador del titulo y el estado vacio. */
-    public void showAlerts(List<ReservationSummary> alerts) {
+    /** Muestra las alertas (una etiqueta por fila) en el orden recibido, con el contador del titulo y el estado vacio. */
+    public void showAlerts(List<String> labels) {
         DefaultTableModel model = (DefaultTableModel) table.getModel();
-        int count = alerts.size();
+        int count = labels.size();
         model.setRowCount(Math.max(BLANK_ROWS, count));
         for (int row = 0; row < model.getRowCount(); row++) {
             boolean filled = row < count;
-            model.setValueAt(filled ? alerts.get(row).label() : null, row, 0);
+            model.setValueAt(filled ? labels.get(row) : null, row, 0);
             model.setValueAt(filled ? Boolean.TRUE : null, row, VIEW_COLUMN);
             model.setValueAt(filled ? Boolean.TRUE : null, row, DISMISS_COLUMN);
         }

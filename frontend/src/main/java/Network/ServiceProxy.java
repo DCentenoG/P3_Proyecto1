@@ -141,7 +141,7 @@ public final class ServiceProxy implements IService, AutoCloseable {
     public void logout() throws ServiceException {
         call("logout");
     }
-    
+
     //--- Funcionarios ---
 
     @Override
