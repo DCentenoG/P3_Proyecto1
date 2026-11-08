@@ -1,6 +1,7 @@
 package Server;
 
 import Service.LocalService;
+import Service.ServiceException;
 
 import java.io.IOException;
 
@@ -12,9 +13,9 @@ public final class ServerMain {
     private ServerMain() {
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, ServiceException {
         int port = resolvePort(args);
-        LocalService service = LocalService.bootstrapFromXml();
+        LocalService service = LocalService.bootstrapFromDatabase();
         new ReservationServer(port, service).start();
     }
 

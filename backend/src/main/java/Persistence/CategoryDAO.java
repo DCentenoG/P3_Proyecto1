@@ -30,6 +30,9 @@ public final class CategoryDAO {
     private static final String DELETE =
             "DELETE FROM CATEGORIA WHERE id = ?";
 
+    private static final String COUNT_REQUIRED_BY =
+            "SELECT COUNT(*) FROM RESERVA_CATEGORIA WHERE categoria_id = ?";
+
     /** Todas las categorias, en orden de id y todavia sin recursos. */
     public List<ResourceCategory> findAll(Connection connection) throws SQLException {
         List<ResourceCategory> categories = new ArrayList<>();
@@ -63,6 +66,24 @@ public final class CategoryDAO {
         try (PreparedStatement statement = connection.prepareStatement(DELETE)) {
             statement.setString(1, categoryId);
             statement.executeUpdate();
+        }
+    }
+
+    /**
+     * Cuantas reservas solicitaron esta categoria.
+     * <p>
+     * La clave foranea de RESERVA_CATEGORIA impide eliminar una categoria que
+     * alguna reserva haya solicitado, aunque esa reserva ya este cancelada o
+     * rechazada. Preguntando primero se le puede dar al usuario un mensaje
+     * entendible en vez de un error de Oracle.
+     */
+    public int countReservationsRequiring(Connection connection, String categoryId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(COUNT_REQUIRED_BY)) {
+            statement.setString(1, categoryId);
+            try (ResultSet rs = statement.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
         }
     }
 }

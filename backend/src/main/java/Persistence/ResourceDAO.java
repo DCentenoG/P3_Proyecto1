@@ -36,6 +36,10 @@ public final class ResourceDAO {
     private static final String COUNT_IN_USE =
             "SELECT COUNT(*) FROM RESERVA_RECURSO WHERE categoria_id = ? AND recurso_id = ?";
 
+    private static final String REPOINT_RESERVATIONS =
+            "UPDATE RESERVA_RECURSO SET categoria_id = ?, recurso_id = ? "
+            + "WHERE categoria_id = ? AND recurso_id = ?";
+
     /**
      * Carga todos los recursos y los mete dentro de la categoria que les
      * corresponde.
@@ -117,6 +121,28 @@ public final class ResourceDAO {
                 rs.next();
                 return rs.getInt(1);
             }
+        }
+    }
+
+    /**
+     * Hace que las reservas que tenian asignado el recurso (categoria, id)
+     * viejo pasen a apuntar al nuevo.
+     * <p>
+     * Hace falta porque la identidad de un recurso es la pareja
+     * (categoria, id): al transferirlo de categoria o cambiarle el id, las
+     * filas de RESERVA_RECURSO quedarian referenciando algo que ya no existe.
+     * Debe ejecutarse DESPUES de crear la fila nueva en RECURSO y ANTES de
+     * borrar la vieja, o la clave foranea lo rechaza.
+     */
+    public void repointReservationResources(Connection connection,
+                                            String oldCategoryId, int oldResourceId,
+                                            String newCategoryId, int newResourceId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(REPOINT_RESERVATIONS)) {
+            statement.setString(1, newCategoryId);
+            statement.setInt(2, newResourceId);
+            statement.setString(3, oldCategoryId);
+            statement.setInt(4, oldResourceId);
+            statement.executeUpdate();
         }
     }
 }

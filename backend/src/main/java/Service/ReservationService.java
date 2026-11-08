@@ -90,7 +90,8 @@ public class ReservationService {
 
         // tryBook agrega la reserva al final de la lista del funcionario.
         Reservation reservation = employee.getReservations().get(employee.getReservations().size() - 1);
-        service.save();
+        // Un INSERT en RESERVA mas sus categorias requeridas, todo en una transaccion.
+        service.insertReservation(employeeId, reservation);
         return reservation;
     }
 
@@ -117,7 +118,8 @@ public class ReservationService {
             throw unavailable(e);
         }
 
-        service.save();
+        // tryEdit modifica el MISMO objeto, asi que el id no cambio: es un UPDATE.
+        service.updateReservation(requireReservationOf(employee, reservationId));
     }
 
     /*
@@ -146,7 +148,7 @@ public class ReservationService {
             throw new ServiceException(e.getMessage(), e);
         }
 
-        service.save();
+        service.updateReservation(reservation);
     }
 
     //--- Administrador: revision de solicitudes ---
@@ -198,7 +200,7 @@ public class ReservationService {
             throw new ServiceException(e.getMessage(), e);
         }
 
-        service.save();
+        service.updateReservation(request);
     }
 
     /*
@@ -245,7 +247,9 @@ public class ReservationService {
                     + "categoria(s): " + String.join(", ", e.getUnavailableCategories()), e);
         }
 
-        service.save();
+        // Cambio el estado y se llenaron los recursos asignados: el UPDATE reescribe
+        // tambien RESERVA_RECURSO.
+        service.updateReservation(request);
     }
 
     /*
@@ -266,7 +270,7 @@ public class ReservationService {
             throw new ServiceException(e.getMessage(), e);
         }
 
-        service.save();
+        service.updateReservation(request);
     }
 
     //--- Consultas de calendarizacion y estadisticas ---

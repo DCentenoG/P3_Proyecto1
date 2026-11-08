@@ -10,9 +10,8 @@ import Model.Resource;
 import Model.ResourceCategory;
 import Model.User;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import Persistence.ConnectionManager;
+
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -58,67 +57,50 @@ public class LocalService implements IService {
     //--- Arranque ---
 
     /*
-    Crea el servicio con la persistencia XML lista para usarse: localiza el
-    archivo de datos, lo carga y siembra un par de registros de prueba si esta
-    vacio.
+    Crea el servicio con la base de datos lista para usarse: lee la
+    configuracion de db/database.properties, carga el estado completo del
+    sistema y siembra un administrador y un par de registros si la base esta
+    vacia (primera ejecucion).
 
-    Vive en el modulo backend, y no en Main, porque todo lo que sabe de XML y de
-    rutas de archivos pertenece a la capa de Datos. El Frontend solo invoca esta
-    fabrica en una linea, y esa linea es la unica que hay que cambiar cuando el
-    cliente pase a hablar por socket:
-
-        IService service = LocalService.bootstrapFromXml();   // hoy
-        IService service = new ServiceProxy(host, puerto);    // con sockets
-
-    TEMPORAL: desaparece en la etapa de base de datos, cuando la conexion pase a
-    configurarse en un .properties del servidor.
+    La llama ServerMain al arrancar. Es la unica puerta de entrada a la
+    persistencia: ni el Frontend ni el resto del codigo saben que hay detras.
     */
-    public static LocalService bootstrapFromXml() {
-        Service service = new Service(resolveXmlPath());
-        try {
-            service.load();
-        } catch (ServiceException e) {
-            // El archivo no existe todavia o esta corrupto: se avisa por consola y se
-            // arranca con contenedores vacios, que se completan con datos de prueba.
-            System.err.println(e.getMessage());
-        }
-        seedDemoDataIfEmpty(service);
-        return new LocalService(service);
+    public static LocalService bootstrapFromDatabase() throws ServiceException {
+        Service service = new Service(ConnectionManager.fromProperties());
+        service.load();
+        LocalService localService = new LocalService(service);
+        localService.seedDemoDataIfEmpty();
+        return localService;
     }
 
     /*
-    Localiza src/Data/system.xml, que vive en la raiz del repositorio. Como el
-    proyecto esta partido en modulos, el directorio de trabajo con el que se
-    arranca puede ser la raiz o la carpeta de un modulo, asi que se sube por los
-    directorios padre hasta reconocer la raiz (la que tiene el pom.xml padre
-    junto a la carpeta common).
+    Datos minimos para poder entrar la primera vez. Se escriben por los mismos
+    DAOs que el resto del sistema, no con sentencias aparte, para que no haya dos
+    caminos distintos de escritura que puedan divergir.
     */
-    private static String resolveXmlPath() {
-        Path relative = Paths.get("src", "Data", "system.xml");
-        Path directory = Paths.get("").toAbsolutePath();
-        for (int depth = 0; depth <= 3 && directory != null; depth++) {
-            if (Files.isRegularFile(directory.resolve("pom.xml"))
-                    && Files.isDirectory(directory.resolve("common"))) {
-                return directory.resolve(relative).toString();
-            }
-            directory = directory.getParent();
-        }
-        return relative.toString();
-    }
-
-    private static void seedDemoDataIfEmpty(Service service) {
+    private void seedDemoDataIfEmpty() throws ServiceException {
         if (!service.getUsers().getUsers().isEmpty()) {
             return;
         }
-        service.getUsers().addAdmin("admin");                                 // ID 1 - clave "admin"
-        service.getUsers().addEmployee("Funcionario de prueba", 88889999);    // ID 2 - clave "2"
-        service.getCategories().addCategory("Salas de reunion");
-        service.getCategories().addCategory("Equipo audiovisual");
-        try {
-            service.save();
-        } catch (ServiceException e) {
-            System.err.println(e.getMessage());
-        }
+        userService.addAdmin("admin");                               // ID 1 - clave "admin"
+        userService.addEmployee("Funcionario de prueba", "88889999"); // ID 2 - clave "2"
+        resourceService.addCategory("Salas de reunion");
+        resourceService.addCategory("Equipo audiovisual");
+
+        // Se avisa con detalle porque este sembrado crea credenciales NUEVAS, que no
+        // son las de los datos de prueba del Proyecto 1. Sin este mensaje es facil
+        // creer que la base perdio informacion, cuando en realidad nunca la tuvo.
+        System.out.println();
+        System.out.println("=====================================================================");
+        System.out.println(" La base estaba VACIA. Se sembraron datos minimos para poder entrar:");
+        System.out.println("     administrador   id 1   clave \"admin\"");
+        System.out.println("     funcionario     id 2   clave \"2\"");
+        System.out.println();
+        System.out.println(" Si lo que queria era recuperar los datos de src/Data/system.xml,");
+        System.out.println(" detenga el servidor y ejecute:");
+        System.out.println("     ImportarXmlAOracle --reemplazar");
+        System.out.println("=====================================================================");
+        System.out.println();
     }
 
     //--- Autenticacion ---
